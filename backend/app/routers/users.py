@@ -98,7 +98,13 @@ async def create_user(
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    """Create a new user in Identity Center."""
+    """Create a new user in Identity Center.
+    
+    用户创建后立即返回，邮件发送和订阅分配在后台异步执行。
+    """
+    import asyncio
+    from app.database import async_session_maker
+
     account_service = AccountService(session)
     account = await account_service.get_account(account_id)
     
@@ -128,7 +134,7 @@ async def create_user(
                 detail=f"User with email {request.email} already exists"
             )
         
-        # Create user
+        # Create user in Identity Center
         username = request.user_name or request.email.split("@")[0]
         display_name = request.display_name or f"{request.given_name} {request.family_name}"
         
@@ -152,7 +158,7 @@ async def create_user(
             family_name=request.family_name,
             status="enabled",
             email_verified=False,
-            pending_subscription_type=None,  # 立即分配，不需要 pending
+            pending_subscription_type=request.subscription_type if request.auto_subscribe else None,
         )
         session.add(ic_user)
         await session.commit()
@@ -160,55 +166,124 @@ async def create_user(
         
         # 记录创建用户日志
         log_service = OperationLogService(session)
-        operator = current_user.get("email") if current_user else None
+        operator = current_user.get("username") if current_user else None
         await log_service.log_operation(
             account_id=account_id,
             operation="create_user",
             target=f"user:{request.email}",
             status="success",
-            message=f"成功创建用户: {request.email}",
+            message=f"用户已创建: {request.email}，后台正在发送邮件和分配订阅",
             details={"user_id": user_id, "user_name": username},
             operator=operator,
         )
         
-        # Send password reset email if requested
-        if request.send_password_reset:
-            ic_client.send_password_reset_email(user_id)
-            # 同时发送邮箱验证邮件
-            ic_client.send_email_verification(user_id, account.identity_store_id)
+        # 后台异步执行：发送邮件 + 分配订阅
+        # 保存需要的参数（不能在 task 里用 session）
+        _account_id = account_id
+        _user_id = user_id
+        _ic_user_id = ic_user.id
+        _email = request.email
+        _send_reset = request.send_password_reset
+        _auto_sub = request.auto_subscribe
+        _sub_type = request.subscription_type
+        _instance_arn = account.instance_arn
+        _identity_store_id = account.identity_store_id
+        _kiro_region = account.kiro_region
+        _sso_region = account.sso_region
+        _operator = operator
+
+        async def _background_setup():
+            """后台执行邮件发送和订阅分配."""
+            try:
+                # 发送邮件
+                if _send_reset:
+                    ic_client.send_password_reset_email(_user_id)
+                    ic_client.send_email_verification(_user_id, _identity_store_id)
+                
+                # 分配订阅
+                if _auto_sub:
+                    from app.aws import KiroSubscriptionClient
+                    kiro_client = KiroSubscriptionClient(
+                        aws_client, kiro_region=_kiro_region, sso_region=_sso_region
+                    )
+                    sub_result = kiro_client.create_assignment(
+                        instance_arn=_instance_arn,
+                        principal_id=_user_id,
+                        subscription_type=_sub_type,
+                    )
+                    
+                    async with async_session_maker() as bg_session:
+                        from app.services.log_service import OperationLogService as BgLogService
+                        bg_log = BgLogService(bg_session)
+                        
+                        if sub_result["success"]:
+                            new_sub = KiroSubscription(
+                                aws_account_id=_account_id,
+                                user_id=_ic_user_id,
+                                principal_id=_user_id,
+                                subscription_type=_sub_type,
+                                status="PENDING",
+                            )
+                            bg_session.add(new_sub)
+                            
+                            # 清除 pending 标记
+                            from sqlalchemy import update
+                            await bg_session.execute(
+                                update(ICUser).where(ICUser.id == _ic_user_id).values(pending_subscription_type=None)
+                            )
+                            await bg_session.commit()
+                            
+                            await bg_log.log_operation(
+                                account_id=_account_id,
+                                operation="auto_subscribe",
+                                target=f"user:{_email}",
+                                status="success",
+                                message=f"订阅分配成功: {_email} -> {_sub_type}，邮件已发送",
+                                operator=_operator,
+                            )
+                        else:
+                            await bg_log.log_operation(
+                                account_id=_account_id,
+                                operation="auto_subscribe",
+                                target=f"user:{_email}",
+                                status="failed",
+                                message=f"订阅分配失败: {sub_result.get('message', '')}，后台将重试",
+                                operator=_operator,
+                            )
+                elif _send_reset:
+                    # 只发了邮件，记录日志
+                    async with async_session_maker() as bg_session:
+                        from app.services.log_service import OperationLogService as BgLogService
+                        bg_log = BgLogService(bg_session)
+                        await bg_log.log_operation(
+                            account_id=_account_id,
+                            operation="send_email",
+                            target=f"user:{_email}",
+                            status="success",
+                            message=f"邮件已发送: {_email}（密码重置 + 邮箱验证）",
+                            operator=_operator,
+                        )
+            except Exception as e:
+                import logging
+                logging.getLogger("create_user").error(f"后台任务失败 ({_email}): {e}")
+                try:
+                    async with async_session_maker() as bg_session:
+                        from app.services.log_service import OperationLogService as BgLogService
+                        bg_log = BgLogService(bg_session)
+                        await bg_log.log_operation(
+                            account_id=_account_id,
+                            operation="create_user_background",
+                            target=f"user:{_email}",
+                            status="failed",
+                            message=f"后台任务失败: {str(e)}",
+                            operator=_operator,
+                        )
+                except Exception:
+                    pass
+
+        asyncio.create_task(_background_setup())
         
-        # 立即分配订阅（AWS 会将状态设为 PENDING，用户验证邮箱后自动变为 ACTIVE）
-        if request.auto_subscribe:
-            from app.aws import KiroSubscriptionClient
-            kiro_client = KiroSubscriptionClient(
-                aws_client,
-                kiro_region=account.kiro_region,
-                sso_region=account.sso_region
-            )
-            sub_result = kiro_client.create_assignment(
-                instance_arn=account.instance_arn,
-                principal_id=user_id,
-                subscription_type=request.subscription_type
-            )
-            
-            if sub_result["success"]:
-                from app.models import KiroSubscription
-                subscription = KiroSubscription(
-                    aws_account_id=account_id,
-                    user_id=ic_user.id,
-                    principal_id=user_id,
-                    subscription_type=request.subscription_type,
-                    status="PENDING"
-                )
-                session.add(subscription)
-                await session.commit()
-                await session.refresh(ic_user)
-            else:
-                # 分配失败，设置 pending 让后台重试
-                ic_user.pending_subscription_type = request.subscription_type
-                await session.commit()
-        
-        # 重新查询用户（含 subscription 关联），避免 lazy loading 问题
+        # 立即返回用户信息
         refreshed_query = select(ICUser).options(selectinload(ICUser.subscription)).where(ICUser.id == ic_user.id)
         ic_user = await session.scalar(refreshed_query)
         return _get_user_response(ic_user)

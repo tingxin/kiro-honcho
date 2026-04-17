@@ -69,6 +69,10 @@ const Users: React.FC = () => {
 
   const handleCreateUser = async (values: Record<string, unknown>) => {
     try {
+      // 立即关闭弹窗
+      setCreateModalVisible(false);
+      form.resetFields();
+
       await userService.createUser(accountId, {
         email: values.email as string,
         given_name: values.given_name as string,
@@ -79,9 +83,7 @@ const Users: React.FC = () => {
         subscription_type: values.subscription_type as string | undefined,
         send_password_reset: values.send_password_reset as boolean ?? true,
       });
-      message.success('用户创建成功，等待用户激活后自动分配订阅');
-      setCreateModalVisible(false);
-      form.resetFields();
+      message.success('用户已创建，邮件发送和订阅分配正在后台执行');
       fetchUsers();
     } catch (error: any) {
       message.error(error.response?.data?.detail || '用户创建失败');
@@ -113,10 +115,17 @@ const Users: React.FC = () => {
 
   const handleCsvUpload = async () => {
     if (!csvFile?.originFileObj) return;
+    // 立即关闭弹窗
+    setCsvModalVisible(false);
+    const file = csvFile.originFileObj;
+    setCsvFile(null);
+
     setCsvUploading(true);
     try {
-      const result = await userService.batchCreateUsersCSV(accountId, csvFile.originFileObj);
-      message.success(`批量导入完成: ${result.success_count} 成功, ${result.failed_count} 失败`);
+      const result = await userService.batchCreateUsersCSV(accountId, file);
+      message.success(
+        `批量导入完成: ${result.success_count} 成功, ${result.failed_count} 失败`
+      );
       if (result.failed_count > 0) {
         const failedEmails = result.results
           .filter((r) => !r.success)
@@ -127,8 +136,6 @@ const Users: React.FC = () => {
           content: <pre style={{ maxHeight: 300, overflow: 'auto' }}>{failedEmails}</pre>,
         });
       }
-      setCsvModalVisible(false);
-      setCsvFile(null);
       fetchUsers();
     } catch (error: any) {
       message.error(error.response?.data?.detail || 'CSV 导入失败');
