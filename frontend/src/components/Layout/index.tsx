@@ -83,12 +83,12 @@ const Layout: React.FC = () => {
       label: '修改密码',
       onClick: () => setPasswordModalOpen(true),
     },
-    {
+    ...(user?.is_admin ? [{
       key: 'systemUsers',
       icon: <UserOutlined />,
       label: '系统用户管理',
       onClick: () => navigate('/system-users'),
-    },
+    }] : []),
     ...(user?.is_admin ? [{
       key: 'userManagement',
       icon: <UserOutlined />,

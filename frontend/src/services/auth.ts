@@ -18,6 +18,7 @@ export interface CurrentUser {
   username: string
   email?: string
   is_active: boolean
+  is_admin: boolean
 }
 
 const authService = {

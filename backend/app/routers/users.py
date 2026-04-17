@@ -108,10 +108,10 @@ async def list_users(
     
     # Sorting
     order_col = ICUser.created_at  # default
-    if sort_by == "email":
-        order_col = ICUser.email
-    elif sort_by == "status":
+    if sort_by == "status":
         order_col = ICUser.email_verified
+    elif sort_by == "subscription":
+        order_col = ICUser.pending_subscription_type
     elif sort_by == "created_at":
         order_col = ICUser.created_at
     
@@ -174,14 +174,16 @@ async def create_user(
         
         # Create user in Identity Center
         username = request.user_name or request.email.split("@")[0]
-        display_name = request.display_name or f"{request.given_name} {request.family_name}"
+        given_name = request.given_name or request.email.split("@")[0]
+        family_name = request.family_name or "Mr"
+        display_name = request.display_name or f"{given_name} {family_name}"
         
         user_id = ic_client.create_user(
             identity_store_id=account.identity_store_id,
             username=username,
             display_name=display_name,
-            given_name=request.given_name,
-            family_name=request.family_name,
+            given_name=given_name,
+            family_name=family_name,
             email=request.email
         )
         
@@ -192,8 +194,8 @@ async def create_user(
             user_name=username,
             display_name=display_name,
             email=request.email,
-            given_name=request.given_name,
-            family_name=request.family_name,
+            given_name=given_name,
+            family_name=family_name,
             status="enabled",
             email_verified=False,
             pending_subscription_type=request.subscription_type if request.auto_subscribe else None,

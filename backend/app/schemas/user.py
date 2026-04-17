@@ -7,8 +7,8 @@ from pydantic import BaseModel, EmailStr, Field
 class UserCreate(BaseModel):
     """Schema for creating a new user."""
     email: EmailStr
-    given_name: str = Field(..., min_length=1)
-    family_name: str = Field(..., min_length=1)
+    given_name: Optional[str] = None
+    family_name: Optional[str] = None
     display_name: Optional[str] = None
     user_name: Optional[str] = None
     auto_subscribe: bool = True

@@ -151,7 +151,7 @@ const Users: React.FC = () => {
   };
 
   const downloadCsvTemplate = () => {
-    const csv = 'email,given_name,family_name,subscription_type\nuser@example.com,John,Doe,Q_DEVELOPER_STANDALONE_PRO\n';
+    const csv = 'email,subscription_type\nuser@example.com,Q_DEVELOPER_STANDALONE_PRO\n';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -252,8 +252,8 @@ const Users: React.FC = () => {
             onChange={(v) => setSortBy(v)}
           >
             <Select.Option value="created_at">创建时间</Select.Option>
-            <Select.Option value="email">邮箱</Select.Option>
             <Select.Option value="status">状态</Select.Option>
+            <Select.Option value="subscription">订阅套餐</Select.Option>
           </Select>
           <Select
             style={{ width: 80 }}
@@ -312,11 +312,11 @@ const Users: React.FC = () => {
             <Input placeholder="user@example.com" />
           </Form.Item>
           <Space style={{ width: '100%' }} size="middle">
-            <Form.Item name="given_name" label="名" rules={[{ required: true, message: '请输入名' }]} style={{ flex: 1 }}>
-              <Input placeholder="名" />
+            <Form.Item name="given_name" label="名" style={{ flex: 1 }}>
+              <Input placeholder="可选，默认用邮箱前缀" />
             </Form.Item>
-            <Form.Item name="family_name" label="姓" rules={[{ required: true, message: '请输入姓' }]} style={{ flex: 1 }}>
-              <Input placeholder="姓" />
+            <Form.Item name="family_name" label="姓" style={{ flex: 1 }}>
+              <Input placeholder="可选，默认 Mr" />
             </Form.Item>
           </Space>
           <Form.Item name="display_name" label="显示名称">
@@ -357,8 +357,8 @@ const Users: React.FC = () => {
           message="CSV 格式说明"
           description={
             <div>
-              <p>必填列: <Text code>email</Text>, <Text code>given_name</Text>, <Text code>family_name</Text></p>
-              <p>可选列: <Text code>subscription_type</Text> (默认 Q_DEVELOPER_STANDALONE_PRO), <Text code>display_name</Text></p>
+              <p>必填列: <Text code>email</Text></p>
+              <p>可选列: <Text code>subscription_type</Text> (默认 Pro), <Text code>given_name</Text>, <Text code>family_name</Text></p>
               <p>所有用户将添加到 <Text strong>{account?.name}</Text> 账号的 Identity Center。</p>
             </div>
           }

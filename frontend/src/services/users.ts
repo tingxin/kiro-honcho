@@ -26,8 +26,8 @@ export interface UserListResponse {
 
 export interface CreateUserRequest {
   email: string;
-  given_name: string;
-  family_name: string;
+  given_name?: string;
+  family_name?: string;
   display_name?: string;
   user_name?: string;
   auto_subscribe?: boolean;

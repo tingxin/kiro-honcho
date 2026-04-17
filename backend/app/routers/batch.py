@@ -18,8 +18,8 @@ router = APIRouter(prefix="/accounts/{account_id}/batch", tags=["Batch"])
 
 class BatchUserItem(BaseModel):
     email: str
-    given_name: str
-    family_name: str
+    given_name: str | None = None
+    family_name: str | None = None
     display_name: str | None = None
     user_name: str | None = None
     subscription_type: str = "Q_DEVELOPER_STANDALONE_PRO"
@@ -98,14 +98,16 @@ async def batch_create_users(
 
             # 创建 IC 用户
             username = item.user_name or item.email.split("@")[0]
-            display_name = item.display_name or f"{item.given_name} {item.family_name}"
+            given_name = item.given_name or item.email.split("@")[0]
+            family_name = item.family_name or "Mr"
+            display_name = item.display_name or f"{given_name} {family_name}"
 
             user_id = ic_client.create_user(
                 identity_store_id=account.identity_store_id,
                 username=username,
                 display_name=display_name,
-                given_name=item.given_name,
-                family_name=item.family_name,
+                given_name=given_name,
+                family_name=family_name,
                 email=item.email,
             )
 
@@ -116,8 +118,8 @@ async def batch_create_users(
                 user_name=username,
                 display_name=display_name,
                 email=item.email,
-                given_name=item.given_name,
-                family_name=item.family_name,
+                given_name=given_name,
+                family_name=family_name,
                 status="enabled",
                 pending_subscription_type=None,
                 email_verified=False,
@@ -221,8 +223,8 @@ async def batch_create_users_csv(
             continue
         users.append(BatchUserItem(
             email=email,
-            given_name=row.get("given_name", row.get("name", "")).strip() or email.split("@")[0],
-            family_name=row.get("family_name", "").strip() or "User",
+            given_name=row.get("given_name", "").strip() or None,
+            family_name=row.get("family_name", "").strip() or None,
             display_name=row.get("display_name", "").strip() or None,
             user_name=row.get("user_name", "").strip() or None,
             subscription_type=row.get("subscription_type", "").strip() or "Q_DEVELOPER_STANDALONE_PRO",
