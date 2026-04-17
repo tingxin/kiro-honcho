@@ -22,7 +22,7 @@ from app.middleware import get_current_user
 router = APIRouter(prefix="/accounts/{account_id}/subscriptions", tags=["Subscriptions"])
 
 
-def _get_sub_response(sub: KiroSubscription, user: Optional[ICUser] = None) -> SubscriptionResponse:
+def _get_sub_response(sub: KiroSubscription, user: Optional[ICUser] = None, account: Optional[AWSAccount] = None) -> SubscriptionResponse:
     """Helper to create SubscriptionResponse."""
     return SubscriptionResponse(
         id=sub.id,
@@ -34,7 +34,9 @@ def _get_sub_response(sub: KiroSubscription, user: Optional[ICUser] = None) -> S
         created_at=sub.created_at,
         user_email=user.email if user else None,
         user_name=user.user_name if user else None,
-        user_display_name=user.display_name if user else None
+        user_display_name=user.display_name if user else None,
+        account_id=account.id if account else (sub.aws_account_id if sub else None),
+        account_name=account.name if account else None,
     )
 
 

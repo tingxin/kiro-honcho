@@ -36,6 +36,8 @@ class UserResponse(BaseModel):
     groups: Optional[List[dict]] = None
     has_subscription: bool = False
     subscription_type: Optional[str] = None
+    pending_subscription_type: Optional[str] = None
+    email_verified: bool = False
     last_synced: Optional[datetime] = None
     created_at: datetime
     

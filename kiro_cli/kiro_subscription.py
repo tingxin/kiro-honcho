@@ -28,14 +28,17 @@ _URL = f"https://codewhisperer.{KIRO_REGION}.amazonaws.com/"
 
 # List 端点使用 SSO_REGION（Identity Center 所在区域）
 _LIST_URL = f"https://service.user-subscriptions.{SSO_REGION}.amazonaws.com/"
-_SERVICE = "user-subscriptions"
+# Create/Delete/Update 签名服务都是 q（已验证 ✅）
+_ASSIGNMENT_SERVICE = "q"
+# List 签名服务是 user-subscriptions（已验证 ✅）
+_LIST_SERVICE = "user-subscriptions"
 
 
 def create_assignment(instance_arn, principal_id, principal_type="USER", subscription_type="Q_DEVELOPER_STANDALONE_PRO", subscription_region=None):
     """为用户分配 Kiro 订阅
     
     URL: codewhisperer.{KIRO_REGION}
-    Signing: service=user-subscriptions, region=KIRO_REGION
+    Signing: service=q, region=KIRO_REGION (已验证 ✅)
     """
     return sigv4_post(
         url=_URL,
@@ -46,7 +49,7 @@ def create_assignment(instance_arn, principal_id, principal_type="USER", subscri
             "principalType": principal_type,
             "subscriptionType": subscription_type,
         },
-        service=_SERVICE,
+        service=_ASSIGNMENT_SERVICE,
         region=KIRO_REGION,
     )
 
@@ -55,7 +58,7 @@ def delete_assignment(instance_arn, principal_id, principal_type="USER", subscri
     """删除用户的 Kiro 订阅
     
     URL: codewhisperer.{KIRO_REGION}
-    Signing: service=user-subscriptions, region=KIRO_REGION
+    Signing: service=q, region=KIRO_REGION (已验证 ✅)
     """
     return sigv4_post(
         url=_URL,
@@ -66,7 +69,7 @@ def delete_assignment(instance_arn, principal_id, principal_type="USER", subscri
             "principalType": principal_type,
             "subscriptionType": subscription_type,
         },
-        service=_SERVICE,
+        service=_ASSIGNMENT_SERVICE,
         region=KIRO_REGION,
     )
 
@@ -75,7 +78,7 @@ def update_assignment(principal_id, subscription_type="Q_DEVELOPER_STANDALONE_PR
     """变更用户的 Kiro 订阅套餐（change plan）
     
     URL: codewhisperer.{KIRO_REGION}
-    Signing: service=q, region=KIRO_REGION
+    Signing: service=q, region=KIRO_REGION (已验证 ✅)
     """
     return sigv4_post(
         url=_URL,
@@ -85,7 +88,7 @@ def update_assignment(principal_id, subscription_type="Q_DEVELOPER_STANDALONE_PR
             "principalType": principal_type,
             "subscriptionType": subscription_type,
         },
-        service="q",
+        service=_ASSIGNMENT_SERVICE,
         region=KIRO_REGION,
     )
 
@@ -94,7 +97,7 @@ def list_subscriptions(instance_arn, max_results=1000, subscription_region=None)
     """列出所有订阅
     
     URL: service.user-subscriptions.{SSO_REGION}
-    Signing: service=user-subscriptions, region=SSO_REGION
+    Signing: service=user-subscriptions, region=SSO_REGION (已验证 ✅)
     subscriptionRegion payload 字段使用 KIRO_REGION
     """
     return sigv4_post(
@@ -105,6 +108,6 @@ def list_subscriptions(instance_arn, max_results=1000, subscription_region=None)
             "maxResults": max_results,
             "subscriptionRegion": subscription_region or KIRO_REGION,
         },
-        service=_SERVICE,
+        service=_LIST_SERVICE,
         region=SSO_REGION,
     )

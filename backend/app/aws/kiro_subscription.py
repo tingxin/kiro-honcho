@@ -47,7 +47,7 @@ class KiroSubscriptionClient:
         Create a Kiro subscription assignment.
         
         URL: codewhisperer.{kiro_region}
-        Signing: service=user-subscriptions, region=kiro_region
+        Signing: service=q, region=kiro_region (已验证 ✅)
         """
         resp = self.aws_client.sigv4_post(
             url=self._kiro_url,
@@ -58,7 +58,7 @@ class KiroSubscriptionClient:
                 "principalType": principal_type,
                 "subscriptionType": subscription_type,
             },
-            service="user-subscriptions",
+            service="q",
             region=self.kiro_region,
         )
         
@@ -79,7 +79,7 @@ class KiroSubscriptionClient:
         Delete a Kiro subscription assignment.
         
         URL: codewhisperer.{kiro_region}
-        Signing: service=user-subscriptions, region=kiro_region
+        Signing: service=q, region=kiro_region (已验证 ✅)
         """
         resp = self.aws_client.sigv4_post(
             url=self._kiro_url,
@@ -90,7 +90,7 @@ class KiroSubscriptionClient:
                 "principalType": principal_type,
                 "subscriptionType": subscription_type,
             },
-            service="user-subscriptions",
+            service="q",
             region=self.kiro_region,
         )
         

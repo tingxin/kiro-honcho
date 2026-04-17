@@ -81,6 +81,13 @@ class ICUser(Base):
     status: Mapped[str] = mapped_column(String(20), default="enabled")
     groups: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     
+    # 自动订阅配置：用户创建时指定的待分配套餐类型
+    # 当用户激活（邮箱验证完成）后，后台自动分配此套餐
+    # 为空表示不需要自动订阅
+    pending_subscription_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    # 邮箱是否已验证（用户点击邮件链接后变为 True）
+    email_verified: Mapped[bool] = mapped_column(default=False)
+    
     # Sync info
     last_synced: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

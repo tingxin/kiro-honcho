@@ -42,6 +42,10 @@ class SubscriptionResponse(BaseModel):
     user_name: Optional[str] = None
     user_display_name: Optional[str] = None
     
+    # Account info
+    account_id: Optional[int] = None
+    account_name: Optional[str] = None
+    
     class Config:
         from_attributes = True
 

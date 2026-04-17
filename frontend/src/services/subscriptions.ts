@@ -11,6 +11,8 @@ export interface Subscription {
   user_email?: string
   user_name?: string
   user_display_name?: string
+  account_id?: number
+  account_name?: string
 }
 
 export interface CreateSubscriptionRequest {
@@ -80,6 +82,22 @@ const subscriptionService = {
     await api.delete(`/accounts/${accountId}/subscriptions/${subscriptionId}`)
   },
 
+  async listAll(
+    skip = 0,
+    limit = 200,
+    accountId?: number,
+    subscriptionType?: string
+  ): Promise<SubscriptionListResponse> {
+    const response = await api.get<SubscriptionListResponse>('/subscriptions', {
+      params: {
+        skip, limit,
+        account_id: accountId,
+        subscription_type: subscriptionType,
+      },
+    })
+    return response.data
+  },
+
   async batchChangePlan(
     accountId: number,
     emails: string[],
@@ -92,6 +110,22 @@ const subscriptionService = {
         subscription_type: subscriptionType,
       }
     )
+    return response.data
+  },
+
+  async listCanceled(): Promise<{
+    total: number
+    subscriptions: Array<{
+      account_id: number
+      account_name: string
+      principal_id: string
+      subscription_type: string
+      status: string
+      user_email: string | null
+      user_name: string | null
+    }>
+  }> {
+    const response = await api.get('/canceled-subscriptions')
     return response.data
   },
 }

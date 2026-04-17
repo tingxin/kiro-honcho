@@ -12,6 +12,8 @@ export interface User {
   groups: Record<string, unknown>[] | null;
   has_subscription: boolean;
   subscription_type: string | null;
+  pending_subscription_type: string | null;
+  email_verified: boolean;
   last_synced: string | null;
   created_at: string;
 }
@@ -61,6 +63,49 @@ export const userService = {
 
   async sendVerificationEmail(accountId: number, userId: number): Promise<{ success: boolean; message: string }> {
     const response = await api.post(`/accounts/${accountId}/users/${userId}/verify-email`);
+    return response.data;
+  },
+
+  async batchCreateUsers(
+    accountId: number,
+    users: Array<{
+      email: string;
+      given_name: string;
+      family_name: string;
+      display_name?: string;
+      user_name?: string;
+      subscription_type?: string;
+    }>,
+    sendPasswordReset = true
+  ): Promise<{
+    total: number;
+    success_count: number;
+    failed_count: number;
+    results: Array<{ email: string; success: boolean; message: string }>;
+  }> {
+    const response = await api.post(`/accounts/${accountId}/batch/users`, {
+      users,
+      send_password_reset: sendPasswordReset,
+    });
+    return response.data;
+  },
+
+  async batchCreateUsersCSV(
+    accountId: number,
+    file: File,
+    sendPasswordReset = true
+  ): Promise<{
+    total: number;
+    success_count: number;
+    failed_count: number;
+    results: Array<{ email: string; success: boolean; message: string }>;
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('send_password_reset', String(sendPasswordReset));
+    const response = await api.post(`/accounts/${accountId}/batch/users/csv`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
     return response.data;
   },
 };

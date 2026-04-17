@@ -46,6 +46,9 @@ class Settings(BaseSettings):
     DEFAULT_ADMIN_USERNAME: str = "admin"
     DEFAULT_ADMIN_PASSWORD: str = "admin123"
     
+    # 自动订阅检查间隔（分钟），0 表示不检查
+    AUTO_SUBSCRIBE_CHECK_INTERVAL: int = 5
+    
     # AWS Defaults
     DEFAULT_SSO_REGION: str = "us-east-1"
     DEFAULT_KIRO_REGION: str = "us-east-1"

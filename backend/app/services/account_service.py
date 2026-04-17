@@ -331,9 +331,12 @@ class AccountService:
                 sso_region=account.sso_region
             )
             
-            # Sync users
+            # Sync users - 使用内部 API 获取邮箱验证状态
             identity_store_id = account.identity_store_id
-            aws_users = ic_client.list_users(identity_store_id)
+            aws_users = ic_client.search_users_with_verification(identity_store_id)
+            # 如果内部 API 失败，fallback 到标准 API
+            if not aws_users:
+                aws_users = ic_client.list_users(identity_store_id)
             
             synced_users = 0
             for user_data in aws_users:
@@ -344,6 +347,8 @@ class AccountService:
                 )
                 existing = await self.session.scalar(query)
                 
+                email_verified = user_data.get("EmailVerified", False)
+                
                 if existing:
                     # Update
                     existing.user_name = user_data.get("UserName", "")
@@ -352,6 +357,7 @@ class AccountService:
                     existing.given_name = user_data.get("GivenName")
                     existing.family_name = user_data.get("FamilyName")
                     existing.status = user_data.get("Status", "enabled")
+                    existing.email_verified = email_verified
                     existing.last_synced = datetime.utcnow()
                 else:
                     # Create
@@ -364,6 +370,7 @@ class AccountService:
                         given_name=user_data.get("GivenName"),
                         family_name=user_data.get("FamilyName"),
                         status=user_data.get("Status", "enabled"),
+                        email_verified=email_verified,
                         last_synced=datetime.utcnow()
                     )
                     self.session.add(new_user)
@@ -371,6 +378,29 @@ class AccountService:
                 synced_users += 1
             
             await self.session.commit()
+            
+            # 清理本地存在但 AWS 已删除的用户
+            aws_user_ids = {u["UserId"] for u in aws_users}
+            local_users_query = select(ICUser).where(ICUser.aws_account_id == account_id)
+            local_result = await self.session.execute(local_users_query)
+            local_users = list(local_result.scalars().all())
+            
+            removed_users = 0
+            for local_user in local_users:
+                if local_user.user_id not in aws_user_ids:
+                    # 同时清理关联的订阅
+                    sub_query = select(KiroSubscription).where(
+                        KiroSubscription.aws_account_id == account_id,
+                        KiroSubscription.principal_id == local_user.user_id,
+                    )
+                    sub = await self.session.scalar(sub_query)
+                    if sub:
+                        await self.session.delete(sub)
+                    await self.session.delete(local_user)
+                    removed_users += 1
+            
+            if removed_users > 0:
+                await self.session.commit()
             
             # Sync subscriptions
             subscriptions_result = kiro_client.list_subscriptions(account.instance_arn)
@@ -396,6 +426,13 @@ class AccountService:
                     
                     sub_type = sub_data.get("type", {}).get("amazonQ", "")
                     sub_status = sub_data.get("status", "active")
+                    
+                    # 跳过已取消的订阅
+                    if sub_status.upper() == "CANCELED":
+                        # 如果本地有记录，删除它
+                        if existing_sub:
+                            await self.session.delete(existing_sub)
+                        continue
                     
                     if existing_sub:
                         existing_sub.subscription_type = sub_type

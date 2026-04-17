@@ -3,8 +3,9 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from app.database import get_session
-from app.models import AWSAccount, ICUser
+from app.models import AWSAccount, ICUser, KiroSubscription
 from app.schemas.user import (
     UserCreate,
     UserUpdate,
@@ -39,6 +40,8 @@ def _get_user_response(user: ICUser) -> UserResponse:
         groups=user.groups,
         has_subscription=bool(user.subscription),
         subscription_type=user.subscription.subscription_type if user.subscription else None,
+        pending_subscription_type=user.pending_subscription_type,
+        email_verified=user.email_verified if user.email_verified else False,
         last_synced=user.last_synced,
         created_at=user.created_at
     )
@@ -77,8 +80,8 @@ async def list_users(
     count_query = select(func.count()).select_from(base_query.subquery())
     total = await session.scalar(count_query)
     
-    # Get users
-    query = base_query.offset(skip).limit(limit).order_by(ICUser.created_at.desc())
+    # Get users with subscription eagerly loaded
+    query = base_query.options(selectinload(ICUser.subscription)).offset(skip).limit(limit).order_by(ICUser.created_at.desc())
     result = await session.execute(query)
     users = list(result.scalars().all())
     
@@ -126,7 +129,7 @@ async def create_user(
             )
         
         # Create user
-        username = request.user_name or request.email
+        username = request.user_name or request.email.split("@")[0]
         display_name = request.display_name or f"{request.given_name} {request.family_name}"
         
         user_id = ic_client.create_user(
@@ -147,7 +150,9 @@ async def create_user(
             email=request.email,
             given_name=request.given_name,
             family_name=request.family_name,
-            status="enabled"
+            status="enabled",
+            email_verified=False,
+            pending_subscription_type=None,  # 立即分配，不需要 pending
         )
         session.add(ic_user)
         await session.commit()
@@ -169,8 +174,10 @@ async def create_user(
         # Send password reset email if requested
         if request.send_password_reset:
             ic_client.send_password_reset_email(user_id)
+            # 同时发送邮箱验证邮件
+            ic_client.send_email_verification(user_id, account.identity_store_id)
         
-        # Auto subscribe if requested
+        # 立即分配订阅（AWS 会将状态设为 PENDING，用户验证邮箱后自动变为 ACTIVE）
         if request.auto_subscribe:
             from app.aws import KiroSubscriptionClient
             kiro_client = KiroSubscriptionClient(
@@ -178,25 +185,32 @@ async def create_user(
                 kiro_region=account.kiro_region,
                 sso_region=account.sso_region
             )
-            result = kiro_client.create_assignment(
+            sub_result = kiro_client.create_assignment(
                 instance_arn=account.instance_arn,
                 principal_id=user_id,
                 subscription_type=request.subscription_type
             )
             
-            if result["success"]:
+            if sub_result["success"]:
                 from app.models import KiroSubscription
                 subscription = KiroSubscription(
                     aws_account_id=account_id,
                     user_id=ic_user.id,
                     principal_id=user_id,
                     subscription_type=request.subscription_type,
-                    status="active"
+                    status="PENDING"
                 )
                 session.add(subscription)
                 await session.commit()
                 await session.refresh(ic_user)
+            else:
+                # 分配失败，设置 pending 让后台重试
+                ic_user.pending_subscription_type = request.subscription_type
+                await session.commit()
         
+        # 重新查询用户（含 subscription 关联），避免 lazy loading 问题
+        refreshed_query = select(ICUser).options(selectinload(ICUser.subscription)).where(ICUser.id == ic_user.id)
+        ic_user = await session.scalar(refreshed_query)
         return _get_user_response(ic_user)
         
     except HTTPException:
@@ -216,7 +230,7 @@ async def get_user(
     current_user: dict = Depends(get_current_user)
 ):
     """Get a specific user."""
-    query = select(ICUser).where(
+    query = select(ICUser).options(selectinload(ICUser.subscription)).where(
         ICUser.id == user_id,
         ICUser.aws_account_id == account_id
     )
@@ -267,7 +281,36 @@ async def delete_user(
         aws_client = AWSClient(access_key, secret_key, account.sso_region)
         ic_client = IdentityCenterClient(aws_client, account.sso_region)
         
-        # Delete from Identity Center
+        # Step 1: 先取消 Kiro 订阅
+        sub_query = select(KiroSubscription).where(
+            KiroSubscription.aws_account_id == account_id,
+            KiroSubscription.principal_id == ic_user.user_id,
+        )
+        subscription = await session.scalar(sub_query)
+        
+        if subscription:
+            from app.aws import KiroSubscriptionClient
+            kiro_client = KiroSubscriptionClient(
+                aws_client,
+                kiro_region=account.kiro_region,
+                sso_region=account.sso_region,
+            )
+            del_sub_result = kiro_client.delete_assignment(
+                instance_arn=account.instance_arn,
+                principal_id=ic_user.user_id,
+                subscription_type=subscription.subscription_type,
+            )
+            if not del_sub_result["success"]:
+                # 尝试不指定 subscription_type 删除
+                kiro_client.delete_assignment(
+                    instance_arn=account.instance_arn,
+                    principal_id=ic_user.user_id,
+                )
+            # 删除本地订阅记录
+            await session.delete(subscription)
+            await session.flush()
+        
+        # Step 2: 再从 Identity Center 删除用户
         ic_client.delete_user(account.identity_store_id, ic_user.user_id)
         
         # 记录删除用户日志
@@ -279,15 +322,15 @@ async def delete_user(
             operation="delete_user",
             target=f"user:{user_email}",
             status="success",
-            message=f"成功删除用户: {user_email}",
+            message=f"成功删除用户: {user_email}（已取消订阅并从 Identity Center 移除）",
             operator=operator,
         )
         
-        # Delete from database
+        # 删除本地用户记录
         await session.delete(ic_user)
         await session.commit()
         
-        return {"message": f"User {user_id} deleted"}
+        return {"message": f"User {user_id} deleted (subscription cancelled, removed from Identity Center)"}
         
     except Exception as e:
         raise HTTPException(

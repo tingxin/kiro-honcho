@@ -11,6 +11,8 @@ from app.routers import (
     users_router,
     subscriptions_router,
     logs_router,
+    batch_router,
+    canceled_subscriptions_router,
 )
 
 settings = get_settings()
@@ -50,6 +52,8 @@ app.include_router(accounts_router, prefix="/api")
 app.include_router(users_router, prefix="/api")
 app.include_router(subscriptions_router, prefix="/api")
 app.include_router(logs_router, prefix="/api")
+app.include_router(batch_router, prefix="/api")
+app.include_router(canceled_subscriptions_router, prefix="/api")
 
 
 @app.get("/")
