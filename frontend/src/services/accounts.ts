@@ -15,6 +15,8 @@ export interface AWSAccount {
     has_kiro_access: boolean
     errors?: string[]
   }
+  sync_interval_minutes?: number
+  last_synced?: string
   created_at: string
   updated_at: string
 }
@@ -26,6 +28,7 @@ export interface CreateAccountRequest {
   secret_access_key: string
   sso_region?: string
   kiro_region?: string
+  sync_interval_minutes?: number
 }
 
 export interface AccountListResponse {
@@ -80,6 +83,19 @@ const accountService = {
 
   async sync(id: number): Promise<{ synced_users: number; synced_subscriptions: number }> {
     const response = await api.post(`/accounts/${id}/sync`)
+    return response.data
+  },
+
+  async getStats(accountId?: number): Promise<{
+    total_users: number
+    subscribed_users: number
+    active_subscriptions: number
+    total_accounts: number
+    active_accounts: number
+  }> {
+    const response = await api.get('/accounts/stats', {
+      params: accountId ? { account_id: accountId } : {},
+    })
     return response.data
   },
 }

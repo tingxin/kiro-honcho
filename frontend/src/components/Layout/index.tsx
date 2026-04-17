@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Spin } from 'antd';
-import { UserOutlined, LogoutOutlined, SettingOutlined, DownOutlined, CloudServerOutlined } from '@ant-design/icons';
+import { UserOutlined, LogoutOutlined, SettingOutlined, DownOutlined, CloudServerOutlined, KeyOutlined } from '@ant-design/icons';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useAccountStore } from '../../stores/accountStore';
 import AccountSelector from './AccountSelector';
+import ChangePasswordModal from '../ChangePasswordModal';
 import styles from './Layout.module.css';
 
 const { Header, Sider, Content } = AntLayout;
@@ -37,6 +38,7 @@ const Layout: React.FC = () => {
   const location = useLocation();
   const { user, logout } = useAuthStore();
   const { accounts, currentAccount, isLoading, fetchAccounts, setCurrentAccount } = useAccountStore();
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false);
 
   React.useEffect(() => {
     fetchAccounts();
@@ -46,15 +48,26 @@ const Layout: React.FC = () => {
     navigate(e.key);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
   const userMenuItems = [
+    {
+      key: 'changePassword',
+      icon: <KeyOutlined />,
+      label: '修改密码',
+      onClick: () => setPasswordModalOpen(true),
+    },
+    {
+      type: 'divider' as const,
+    },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
       label: '退出登录',
-      onClick: () => {
-        logout();
-        navigate('/login');
-      },
+      onClick: handleLogout,
     },
   ];
 
@@ -99,6 +112,10 @@ const Layout: React.FC = () => {
           <Outlet />
         </Content>
       </AntLayout>
+      <ChangePasswordModal 
+        open={passwordModalOpen} 
+        onClose={() => setPasswordModalOpen(false)} 
+      />
     </AntLayout>
   );
 };

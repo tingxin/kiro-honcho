@@ -21,18 +21,30 @@ export interface CurrentUser {
 }
 
 const authService = {
-  async login(username: string, password: string): Promise<TokenResponse> {
-    const response = await api.post<TokenResponse>('/auth/login', {
-      username,
-      password,
-    })
-    const { access_token, refresh_token } = response.data
+  async login(username: string, password: string): Promise<boolean> {
+    try {
+      const response = await api.post<TokenResponse>('/auth/login', {
+        username,
+        password,
+      })
+      const { access_token, refresh_token } = response.data
 
-    // Store tokens
-    useAuthStore.getState().setTokens(access_token, refresh_token)
-    localStorage.setItem('refresh_token', refresh_token)
+      // Get current user info
+      const userResponse = await api.get<CurrentUser>('/auth/me', {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+        },
+      })
 
-    return response.data
+      // Store tokens and set authenticated
+      useAuthStore.getState().login(access_token, refresh_token, userResponse.data)
+      localStorage.setItem('refresh_token', refresh_token)
+
+      return true
+    } catch (error) {
+      console.error('Login failed:', error)
+      return false
+    }
   },
 
   async refresh(): Promise<TokenResponse> {
@@ -63,6 +75,19 @@ const authService = {
     } finally {
       useAuthStore.getState().logout()
       localStorage.removeItem('refresh_token')
+    }
+  },
+
+  async changePassword(currentPassword: string, newPassword: string): Promise<boolean> {
+    try {
+      await api.post('/auth/change-password', {
+        current_password: currentPassword,
+        new_password: newPassword,
+      })
+      return true
+    } catch (error) {
+      console.error('Change password failed:', error)
+      return false
     }
   },
 }

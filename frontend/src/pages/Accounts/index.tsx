@@ -140,6 +140,18 @@ export default function Accounts() {
       render: (id: string) => id ? <Tag color="blue">Connected</Tag> : <Tag>Not Connected</Tag>,
     },
     {
+      title: 'Auto Sync',
+      dataIndex: 'sync_interval_minutes',
+      key: 'sync_interval_minutes',
+      render: (val: number | undefined, record: AWSAccount) => {
+        if (!val || val <= 0) return <Tag>Off</Tag>
+        const lastSync = record.last_synced
+          ? new Date(record.last_synced).toLocaleString()
+          : 'Never'
+        return <Tag color="cyan">Every {val}min (Last: {lastSync})</Tag>
+      },
+    },
+    {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: AWSAccount) => (
@@ -212,6 +224,7 @@ export default function Accounts() {
           initialValues={{
             sso_region: 'us-east-2',
             kiro_region: 'us-east-1',
+            sync_interval_minutes: 0,
           }}
         >
           <Form.Item
@@ -263,6 +276,21 @@ export default function Accounts() {
               </Select>
             </Form.Item>
           </Space>
+
+          <Form.Item
+            name="sync_interval_minutes"
+            label="Auto Sync Interval (minutes)"
+            style={{ marginTop: 16 }}
+            extra="0 = disabled. Recommended: 30 or 60 minutes."
+          >
+            <Select>
+              <Option value={0}>Disabled</Option>
+              <Option value={5}>Every 5 min</Option>
+              <Option value={15}>Every 15 min</Option>
+              <Option value={30}>Every 30 min</Option>
+              <Option value={60}>Every 60 min</Option>
+            </Select>
+          </Form.Item>
 
           <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>

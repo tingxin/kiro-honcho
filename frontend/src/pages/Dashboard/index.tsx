@@ -1,11 +1,45 @@
 import React from 'react';
-import { Row, Col, Card, Statistic } from 'antd';
-import { UserOutlined, CloudServerOutlined, DollarOutlined, TeamOutlined } from '@ant-design/icons';
+import { Row, Col, Card, Statistic, Spin } from 'antd';
+import { UserOutlined, CloudServerOutlined, SafetyCertificateOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import styles from './Dashboard.module.css';
 import { useAccountStore } from '../../stores/accountStore';
+import { accountService } from '../../services/accounts';
+
+interface DashboardStats {
+  total_users: number;
+  subscribed_users: number;
+  active_subscriptions: number;
+  total_accounts: number;
+  active_accounts: number;
+}
 
 const Dashboard: React.FC = () => {
   const { currentAccount } = useAccountStore();
+  const [stats, setStats] = React.useState<DashboardStats | null>(null);
+  const [loading, setLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    const fetchStats = async () => {
+      setLoading(true);
+      try {
+        const data = await accountService.getStats(currentAccount?.id);
+        setStats(data);
+      } catch (error) {
+        console.error('Failed to fetch stats:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStats();
+  }, [currentAccount]);
+
+  if (loading && !stats) {
+    return (
+      <div style={{ textAlign: 'center', padding: 80 }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
 
   return (
     <div className={styles.dashboard}>
@@ -13,8 +47,8 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card className={styles.statCard}>
             <Statistic
-              title={<span className={styles.statTitle}>总用户数</span>}
-              value={0}
+              title={<span className={styles.statTitle}>Identity Center 用户</span>}
+              value={stats?.total_users ?? 0}
               prefix={<UserOutlined />}
             />
           </Card>
@@ -22,18 +56,19 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card className={styles.statCard}>
             <Statistic
-              title={<span className={styles.statTitle}>活跃订阅</span>}
-              value={0}
-              prefix={<CloudServerOutlined />}
+              title={<span className={styles.statTitle}>Kiro 订阅用户</span>}
+              value={stats?.subscribed_users ?? 0}
+              prefix={<SafetyCertificateOutlined />}
             />
           </Card>
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <Card className={styles.statCard}>
             <Statistic
-              title={<span className={styles.statTitle}>本月 Credit</span>}
-              value={0}
-              prefix={<DollarOutlined />}
+              title={<span className={styles.statTitle}>活跃订阅</span>}
+              value={stats?.active_subscriptions ?? 0}
+              prefix={<CheckCircleOutlined />}
+              valueStyle={{ color: '#3f8600' }}
             />
           </Card>
         </Col>
@@ -41,8 +76,8 @@ const Dashboard: React.FC = () => {
           <Card className={styles.statCard}>
             <Statistic
               title={<span className={styles.statTitle}>AWS 账号</span>}
-              value={currentAccount ? 1 : 0}
-              prefix={<TeamOutlined />}
+              value={`${stats?.active_accounts ?? 0} / ${stats?.total_accounts ?? 0}`}
+              prefix={<CloudServerOutlined />}
             />
           </Card>
         </Col>

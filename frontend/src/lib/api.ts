@@ -1,31 +1,42 @@
 import axios from 'axios'
-import { useAuthStore } from '../stores/authStore'
 
 const api = axios.create({
   baseURL: '/api',
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 })
 
-// Request interceptor to add auth token
+// Request interceptor - add auth token
 api.interceptors.request.use(
   (config) => {
-    const accessToken = useAuthStore.getState().accessToken
-    if (accessToken) {
-      config.headers.Authorization = `Bearer ${accessToken}`
+    const authData = localStorage.getItem('kiro-auth')
+    if (authData) {
+      try {
+        const { state } = JSON.parse(authData)
+        if (state?.accessToken) {
+          config.headers.Authorization = `Bearer ${state.accessToken}`
+        }
+      } catch (e) {
+        // Ignore parse errors
+      }
     }
     return config
   },
-  (error) => Promise.reject(error)
+  (error) => {
+    return Promise.reject(error)
+  }
 )
 
-// Response interceptor to handle errors
+// Response interceptor - handle errors
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      useAuthStore.getState().logout()
+      // Token expired, redirect to login
+      localStorage.removeItem('kiro-auth')
+      window.location.href = '/login'
     }
     return Promise.reject(error)
   }
