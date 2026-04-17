@@ -59,9 +59,10 @@ async def list_subscriptions(
             detail=f"AWS account {account_id} not found"
         )
     
-    # Build query
+    # Build query — 排除已取消的订阅
     base_query = select(KiroSubscription).where(
-        KiroSubscription.aws_account_id == account_id
+        KiroSubscription.aws_account_id == account_id,
+        func.upper(KiroSubscription.status).notin_(["CANCELED", "CANCELLED"]),
     )
     
     if subscription_type:

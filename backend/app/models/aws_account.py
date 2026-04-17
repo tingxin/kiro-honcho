@@ -1,7 +1,7 @@
 """AWS Account database model."""
 from datetime import datetime
 from typing import Optional, List
-from sqlalchemy import String, Text, DateTime, JSON, Integer, ForeignKey
+from sqlalchemy import String, Text, DateTime, JSON, Integer, ForeignKey, Boolean, Index
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.database import Base
 
@@ -86,7 +86,7 @@ class ICUser(Base):
     # 为空表示不需要自动订阅
     pending_subscription_type: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
     # 邮箱是否已验证（用户点击邮件链接后变为 True）
-    email_verified: Mapped[bool] = mapped_column(default=False)
+    email_verified: Mapped[bool] = mapped_column(Boolean, default=False)
     
     # Sync info
     last_synced: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -135,6 +135,11 @@ class OperationLog(Base):
     """Operation Log model for tracking all operations."""
     
     __tablename__ = "operation_logs"
+    __table_args__ = (
+        Index("idx_oplog_account_created", "aws_account_id", "created_at"),
+        Index("idx_oplog_operator_created", "operator", "created_at"),
+        Index("idx_oplog_operation", "operation"),
+    )
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     aws_account_id: Mapped[int] = mapped_column(Integer, ForeignKey("aws_accounts.id"), nullable=False)

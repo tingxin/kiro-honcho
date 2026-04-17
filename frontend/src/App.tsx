@@ -7,6 +7,7 @@ import Accounts from './pages/Accounts'
 import Users from './pages/Users'
 import Subscriptions from './pages/Subscriptions'
 import AccountLogs from './pages/AccountLogs'
+import SystemUsers from './pages/SystemUsers'
 import './App.css'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -33,6 +34,7 @@ function App() {
           <Route path="accounts/:accountId/users" element={<Users />} />
           <Route path="accounts/:accountId/subscriptions" element={<Subscriptions />} />
           <Route path="accounts/:accountId/logs" element={<AccountLogs />} />
+          <Route path="system-users" element={<SystemUsers />} />
         </Route>
       </Routes>
     </BrowserRouter>

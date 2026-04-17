@@ -34,62 +34,72 @@ class IdentityCenterClient:
     
     def search_users_with_verification(self, identity_store_id: str) -> List[Dict[str, Any]]:
         """
-        使用内部 API SearchUsers 获取用户列表（含邮箱验证状态）.
+        使用内部 API SearchUsers 获取用户列表（含邮箱验证状态），支持分页.
         
         URL: identitystore.{sso_region}.amazonaws.com/identitystore/
         Target: AWSIdentityStoreService.SearchUsers
         Signing: service=identitystore, region=sso_region
-        
-        Returns:
-            List of user dicts with email_verified field
         """
-        resp = self.aws_client.sigv4_post(
-            url=f"https://identitystore.{self.sso_region}.amazonaws.com/identitystore/",
-            target="AWSIdentityStoreService.SearchUsers",
-            payload={
+        all_users = []
+        next_token = None
+        
+        while True:
+            payload = {
                 "IdentityStoreId": identity_store_id,
                 "Filters": [],
                 "MaxResults": 100,
-            },
-            service="identitystore",
-            region=self.sso_region,
-        )
-        
-        if resp.status_code != 200:
-            return []
-        
-        data = resp.json()
-        users = []
-        for user in data.get("Users", []):
-            attrs = user.get("UserAttributes", {})
-            emails_data = attrs.get("emails", {}).get("ComplexListValue", [])
+            }
+            if next_token:
+                payload["NextToken"] = next_token
             
-            primary_email = ""
-            email_verified = False
-            for email_entry in emails_data:
-                value = email_entry.get("value", {}).get("StringValue", "")
-                is_primary = email_entry.get("primary", {}).get("BooleanValue", False)
-                verification = email_entry.get("verificationStatus", {}).get("StringValue", "NOT_VERIFIED")
+            resp = self.aws_client.sigv4_post(
+                url=f"https://identitystore.{self.sso_region}.amazonaws.com/identitystore/",
+                target="AWSIdentityStoreService.SearchUsers",
+                payload=payload,
+                service="identitystore",
+                region=self.sso_region,
+            )
+            
+            if resp.status_code != 200:
+                break
+            
+            data = resp.json()
+            
+            for user in data.get("Users", []):
+                attrs = user.get("UserAttributes", {})
+                emails_data = attrs.get("emails", {}).get("ComplexListValue", [])
                 
-                if is_primary or not primary_email:
-                    primary_email = value
-                    email_verified = verification == "VERIFIED"
+                primary_email = ""
+                email_verified = False
+                for email_entry in emails_data:
+                    value = email_entry.get("value", {}).get("StringValue", "")
+                    is_primary = email_entry.get("primary", {}).get("BooleanValue", False)
+                    verification = email_entry.get("verificationStatus", {}).get("StringValue", "NOT_VERIFIED")
+                    
+                    if is_primary or not primary_email:
+                        primary_email = value
+                        email_verified = verification == "VERIFIED"
+                
+                name_data = attrs.get("name", {}).get("ComplexValue", {})
+                
+                all_users.append({
+                    "UserId": user.get("UserId", ""),
+                    "UserName": user.get("UserName", ""),
+                    "DisplayName": attrs.get("displayName", {}).get("StringValue", ""),
+                    "Email": primary_email,
+                    "GivenName": name_data.get("givenName", {}).get("StringValue", ""),
+                    "FamilyName": name_data.get("familyName", {}).get("StringValue", ""),
+                    "Status": "enabled" if user.get("Active") else "disabled",
+                    "UserStatus": user.get("UserStatus", ""),
+                    "EmailVerified": email_verified,
+                })
             
-            name_data = attrs.get("name", {}).get("ComplexValue", {})
-            
-            users.append({
-                "UserId": user.get("UserId", ""),
-                "UserName": user.get("UserName", ""),
-                "DisplayName": attrs.get("displayName", {}).get("StringValue", ""),
-                "Email": primary_email,
-                "GivenName": name_data.get("givenName", {}).get("StringValue", ""),
-                "FamilyName": name_data.get("familyName", {}).get("StringValue", ""),
-                "Status": "enabled" if user.get("Active") else "disabled",
-                "UserStatus": user.get("UserStatus", ""),
-                "EmailVerified": email_verified,
-            })
+            # 检查是否有下一页
+            next_token = data.get("NextToken")
+            if not next_token:
+                break
         
-        return users
+        return all_users
     
     def get_instance_info(self, instance_arn: Optional[str] = None) -> Dict[str, str]:
         """

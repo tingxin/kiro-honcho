@@ -137,37 +137,52 @@ class KiroSubscriptionClient:
         subscription_region: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        List all subscriptions.
+        List all subscriptions，支持分页.
         
         URL: service.user-subscriptions.{sso_region}
         Signing: service=user-subscriptions, region=sso_region
-        subscriptionRegion payload 字段使用 kiro_region
         """
-        resp = self.aws_client.sigv4_post(
-            url=self._list_url,
-            target="AWSZornControlPlaneService.ListUserSubscriptions",
-            payload={
+        all_subs = []
+        next_token = None
+        
+        while True:
+            payload: Dict[str, Any] = {
                 "instanceArn": instance_arn,
                 "maxResults": max_results,
                 "subscriptionRegion": subscription_region or self.kiro_region,
-            },
-            service="user-subscriptions",
-            region=self.sso_region,
-        )
-        
-        if resp.status_code == 200:
-            data = resp.json()
-            return {
-                "success": True,
-                "subscriptions": data.get("subscriptions", []),
-                "total": len(data.get("subscriptions", []))
             }
+            if next_token:
+                payload["nextToken"] = next_token
+            
+            resp = self.aws_client.sigv4_post(
+                url=self._list_url,
+                target="AWSZornControlPlaneService.ListUserSubscriptions",
+                payload=payload,
+                service="user-subscriptions",
+                region=self.sso_region,
+            )
+            
+            if resp.status_code != 200:
+                if not all_subs:
+                    return {
+                        "success": False,
+                        "status_code": resp.status_code,
+                        "message": resp.text,
+                        "subscriptions": []
+                    }
+                break
+            
+            data = resp.json()
+            all_subs.extend(data.get("subscriptions", []))
+            
+            next_token = data.get("nextToken")
+            if not next_token:
+                break
         
         return {
-            "success": False,
-            "status_code": resp.status_code,
-            "message": resp.text,
-            "subscriptions": []
+            "success": True,
+            "subscriptions": all_subs,
+            "total": len(all_subs)
         }
     
     def get_subscription_by_principal(

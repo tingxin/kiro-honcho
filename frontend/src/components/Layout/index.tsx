@@ -10,6 +10,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useAccountStore } from '../../stores/accountStore';
 import AccountSelector from './AccountSelector';
 import ChangePasswordModal from '../ChangePasswordModal';
+import UserManagementModal from '../UserManagementModal';
 import styles from './Layout.module.css';
 
 const { Header, Sider, Content } = AntLayout;
@@ -20,6 +21,7 @@ const Layout: React.FC = () => {
   const { user, logout } = useAuthStore();
   const { accounts, currentAccount, isLoading, fetchAccounts, setCurrentAccount } = useAccountStore();
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
+  const [userMgmtModalOpen, setUserMgmtModalOpen] = useState(false);
 
   React.useEffect(() => {
     fetchAccounts();
@@ -81,6 +83,18 @@ const Layout: React.FC = () => {
       label: '修改密码',
       onClick: () => setPasswordModalOpen(true),
     },
+    {
+      key: 'systemUsers',
+      icon: <UserOutlined />,
+      label: '系统用户管理',
+      onClick: () => navigate('/system-users'),
+    },
+    ...(user?.is_admin ? [{
+      key: 'userManagement',
+      icon: <UserOutlined />,
+      label: '系统用户管理',
+      onClick: () => setUserMgmtModalOpen(true),
+    }] : []),
     { type: 'divider' as const },
     {
       key: 'logout',
@@ -134,6 +148,10 @@ const Layout: React.FC = () => {
       <ChangePasswordModal
         open={passwordModalOpen}
         onClose={() => setPasswordModalOpen(false)}
+      />
+      <UserManagementModal
+        open={userMgmtModalOpen}
+        onClose={() => setUserMgmtModalOpen(false)}
       />
     </AntLayout>
   );

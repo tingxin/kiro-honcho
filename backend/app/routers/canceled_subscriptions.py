@@ -63,7 +63,7 @@ async def list_canceled_subscriptions(
 
             for sub in subs_result["subscriptions"]:
                 sub_status = sub.get("status", "")
-                if sub_status.upper() != "CANCELED":
+                if sub_status.upper() not in ("CANCELED", "CANCELLED"):
                     continue
 
                 principal_id = sub.get("principal", {}).get("user", "")

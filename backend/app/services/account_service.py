@@ -428,7 +428,7 @@ class AccountService:
                     sub_status = sub_data.get("status", "active")
                     
                     # 跳过已取消的订阅
-                    if sub_status.upper() == "CANCELED":
+                    if sub_status.upper() in ("CANCELED", "CANCELLED"):
                         # 如果本地有记录，删除它
                         if existing_sub:
                             await self.session.delete(existing_sub)
@@ -453,17 +453,18 @@ class AccountService:
                 
                 await self.session.commit()
             
-            # 记录同步结果日志
-            log_service = OperationLogService(self.session)
-            await log_service.log_operation(
-                account_id=account_id,
-                operation="sync_account_data",
-                target=f"account:{account.name}",
-                status="success",
-                message=f"同步完成: {synced_users} 用户, {synced_subs} 订阅",
-                details={"synced_users": synced_users, "synced_subscriptions": synced_subs},
-                operator=operator,
-            )
+            # 只记录人工操作的日志，跳过系统自动同步
+            if operator and not str(operator).startswith("system:"):
+                log_service = OperationLogService(self.session)
+                await log_service.log_operation(
+                    account_id=account_id,
+                    operation="sync_account_data",
+                    target=f"account:{account.name}",
+                    status="success",
+                    message=f"同步完成: {synced_users} 用户, {synced_subs} 订阅",
+                    details={"synced_users": synced_users, "synced_subscriptions": synced_subs},
+                    operator=operator,
+                )
             
             return {
                 "success": True,
@@ -472,16 +473,17 @@ class AccountService:
             }
             
         except Exception as e:
-            # 记录同步失败日志
-            log_service = OperationLogService(self.session)
-            await log_service.log_operation(
-                account_id=account_id,
-                operation="sync_account_data",
-                target=f"account:{account.name}",
-                status="failed",
-                message=f"同步失败: {str(e)}",
-                operator=operator,
-            )
+            # 只记录人工操作的失败日志
+            if operator and not str(operator).startswith("system:"):
+                log_service = OperationLogService(self.session)
+                await log_service.log_operation(
+                    account_id=account_id,
+                    operation="sync_account_data",
+                    target=f"account:{account.name}",
+                    status="failed",
+                    message=f"同步失败: {str(e)}",
+                    operator=operator,
+                )
             
             return {
                 "success": False,

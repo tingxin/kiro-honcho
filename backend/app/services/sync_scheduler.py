@@ -104,18 +104,7 @@ async def _check_and_auto_subscribe():
                             last_synced=datetime.now(timezone.utc),
                         )
                         session.add(new_sub)
-                        user.pending_subscription_type = None  # 清除待订阅标记
-
-                        # 记录日志
-                        log_service = OperationLogService(session)
-                        await log_service.log_operation(
-                            account_id=account_id,
-                            operation="auto_subscribe",
-                            target=f"user:{user.email}",
-                            status="success",
-                            message=f"自动分配订阅: {user.email} -> {sub_type}",
-                            operator="system:auto_subscribe",
-                        )
+                        user.pending_subscription_type = None
                         logger.info(f"订阅分配成功: {user.email}")
                     else:
                         logger.error(

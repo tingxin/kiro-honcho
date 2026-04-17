@@ -12,6 +12,7 @@ export interface User {
   groups: Record<string, unknown>[] | null;
   has_subscription: boolean;
   subscription_type: string | null;
+  subscription_status: string | null;
   pending_subscription_type: string | null;
   email_verified: boolean;
   last_synced: string | null;
@@ -35,9 +36,22 @@ export interface CreateUserRequest {
 }
 
 export const userService = {
-  async listUsers(accountId: number, skip = 0, limit = 100, search?: string): Promise<UserListResponse> {
+  async listUsers(
+    accountId: number,
+    skip = 0,
+    limit = 200,
+    search?: string,
+    subscriptionStatus?: string,
+    sortBy?: string,
+    sortOrder?: string,
+  ): Promise<UserListResponse> {
     const response = await api.get<UserListResponse>(`/accounts/${accountId}/users`, {
-      params: { skip, limit, search },
+      params: {
+        skip, limit, search,
+        subscription_status: subscriptionStatus,
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      },
     });
     return response.data;
   },

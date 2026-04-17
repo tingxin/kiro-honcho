@@ -7,6 +7,7 @@ from .aws_account import (
     CreditUsage,
     BatchTask
 )
+from .app_user import AppUser
 
 __all__ = [
     "AWSAccount",
@@ -14,5 +15,6 @@ __all__ = [
     "KiroSubscription",
     "OperationLog",
     "CreditUsage",
-    "BatchTask"
+    "BatchTask",
+    "AppUser",
 ]

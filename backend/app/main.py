@@ -21,11 +21,15 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events."""
-    # Startup
     await init_db()
+    # 确保默认 admin 用户存在
+    from app.database import async_session_maker
+    from app.services import AuthService
+    async with async_session_maker() as session:
+        auth = AuthService(session)
+        await auth._ensure_default_admin()
     start_scheduler()
     yield
-    # Shutdown
     stop_scheduler()
 
 

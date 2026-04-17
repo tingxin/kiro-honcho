@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     
     # Database
     DATABASE_URL: str = f"sqlite+aiosqlite:///{BASE_DIR}/data/kiro_honcho.db"
+    DB_SSL_CA: Optional[str] = None
     
     # JWT Settings
     SECRET_KEY: str = "your-super-secret-key-change-in-production-min-32-chars"

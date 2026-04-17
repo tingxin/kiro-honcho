@@ -40,6 +40,7 @@ def _get_user_response(user: ICUser) -> UserResponse:
         groups=user.groups,
         has_subscription=bool(user.subscription),
         subscription_type=user.subscription.subscription_type if user.subscription else None,
+        subscription_status=user.subscription.status if user.subscription else None,
         pending_subscription_type=user.pending_subscription_type,
         email_verified=user.email_verified if user.email_verified else False,
         last_synced=user.last_synced,
@@ -51,13 +52,16 @@ def _get_user_response(user: ICUser) -> UserResponse:
 async def list_users(
     account_id: int,
     skip: int = Query(0, ge=0),
-    limit: int = Query(100, ge=1, le=1000),
+    limit: int = Query(200, ge=1, le=1000),
     search: Optional[str] = Query(None, description="Search by email or name"),
+    email_verified: Optional[bool] = Query(None, description="Filter by email verified"),
+    subscription_status: Optional[str] = Query(None, description="Filter: ACTIVE, PENDING, NONE, UNVERIFIED"),
+    sort_by: Optional[str] = Query(None, description="Sort field: email, status, subscription, created_at"),
+    sort_order: Optional[str] = Query("desc", description="asc or desc"),
     session: AsyncSession = Depends(get_session),
     current_user: dict = Depends(get_current_user)
 ):
-    """List users for an AWS account."""
-    # Verify account exists
+    """List users for an AWS account with filtering and sorting."""
     account_service = AccountService(session)
     account = await account_service.get_account(account_id)
     if not account:
@@ -67,7 +71,9 @@ async def list_users(
         )
     
     # Build query
-    base_query = select(ICUser).where(ICUser.aws_account_id == account_id)
+    base_query = select(ICUser).options(selectinload(ICUser.subscription)).where(
+        ICUser.aws_account_id == account_id
+    )
     
     if search:
         base_query = base_query.where(
@@ -76,14 +82,46 @@ async def list_users(
             ICUser.user_name.ilike(f"%{search}%")
         )
     
+    # 邮箱验证过滤
+    if email_verified is not None:
+        base_query = base_query.where(ICUser.email_verified == email_verified)
+    
+    # 订阅状态过滤需要 join
+    if subscription_status:
+        upper_status = subscription_status.upper()
+        if upper_status == "NONE":
+            # 没有订阅的用户
+            base_query = base_query.outerjoin(KiroSubscription, KiroSubscription.user_id == ICUser.id).where(
+                KiroSubscription.id.is_(None)
+            )
+        elif upper_status == "UNVERIFIED":
+            # 邮箱未验证
+            base_query = base_query.where(ICUser.email_verified == False)
+        elif upper_status in ("ACTIVE", "PENDING"):
+            base_query = base_query.join(KiroSubscription, KiroSubscription.user_id == ICUser.id).where(
+                func.upper(KiroSubscription.status) == upper_status
+            )
+    
     # Count
     count_query = select(func.count()).select_from(base_query.subquery())
     total = await session.scalar(count_query)
     
-    # Get users with subscription eagerly loaded
-    query = base_query.options(selectinload(ICUser.subscription)).offset(skip).limit(limit).order_by(ICUser.created_at.desc())
+    # Sorting
+    order_col = ICUser.created_at  # default
+    if sort_by == "email":
+        order_col = ICUser.email
+    elif sort_by == "status":
+        order_col = ICUser.email_verified
+    elif sort_by == "created_at":
+        order_col = ICUser.created_at
+    
+    if sort_order == "asc":
+        query = base_query.offset(skip).limit(limit).order_by(order_col.asc())
+    else:
+        query = base_query.offset(skip).limit(limit).order_by(order_col.desc())
+    
     result = await session.execute(query)
-    users = list(result.scalars().all())
+    users = list(result.unique().scalars().all())
     
     return UserListResponse(
         total=total,

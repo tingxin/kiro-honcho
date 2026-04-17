@@ -6,6 +6,7 @@ interface User {
   username: string
   email?: string
   is_active: boolean
+  is_admin: boolean
 }
 
 interface AuthState {
@@ -25,7 +26,7 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       accessToken: null,
       refreshToken: null,
-      
+
       login: (accessToken, refreshToken, user) =>
         set({
           isAuthenticated: true,
@@ -33,7 +34,7 @@ export const useAuthStore = create<AuthState>()(
           refreshToken,
           user,
         }),
-      
+
       logout: () =>
         set({
           isAuthenticated: false,
@@ -41,7 +42,7 @@ export const useAuthStore = create<AuthState>()(
           refreshToken: null,
           user: null,
         }),
-      
+
       setTokens: (accessToken, refreshToken) =>
         set({
           accessToken,

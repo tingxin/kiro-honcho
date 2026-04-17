@@ -34,6 +34,9 @@ const Users: React.FC = () => {
   const [csvFile, setCsvFile] = React.useState<UploadFile | null>(null);
   const [csvUploading, setCsvUploading] = React.useState(false);
   const [searchText, setSearchText] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState<string | undefined>(undefined);
+  const [sortBy, setSortBy] = React.useState<string>('created_at');
+  const [sortOrder, setSortOrder] = React.useState<string>('desc');
   const [form] = Form.useForm();
 
   // 加载账号信息
@@ -53,7 +56,10 @@ const Users: React.FC = () => {
     if (!accountId || isNaN(accountId)) return;
     setLoading(true);
     try {
-      const data = await userService.listUsers(accountId, 0, 200, searchText || undefined);
+      const data = await userService.listUsers(
+        accountId, 0, 200, searchText || undefined,
+        statusFilter, sortBy, sortOrder,
+      );
       setUsers(data.users);
       setTotal(data.total);
     } catch (error) {
@@ -61,7 +67,7 @@ const Users: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [accountId, searchText]);
+  }, [accountId, searchText, statusFilter, sortBy, sortOrder]);
 
   React.useEffect(() => {
     fetchUsers();
@@ -172,14 +178,18 @@ const Users: React.FC = () => {
     {
       title: '状态',
       key: 'status',
-      width: 160,
-      render: (_: unknown, record: User) => (
-        <Space direction="vertical" size={0}>
-          <Tag color={record.email_verified ? 'green' : 'gold'}>
-            {record.email_verified ? '邮箱已验证' : '邮箱未验证'}
-          </Tag>
-        </Space>
-      ),
+      width: 120,
+      render: (_: unknown, record: User) => {
+        if (!record.email_verified) {
+          return <Tag color="red">邮箱未激活</Tag>;
+        }
+        if (record.has_subscription) {
+          const subStatus = (record.subscription_status || '').toUpperCase();
+          if (subStatus === 'ACTIVE') return <Tag color="green">Active</Tag>;
+          return <Tag color="orange">Pending</Tag>;
+        }
+        return <Tag color="orange">Pending</Tag>;
+      },
     },
     {
       title: '订阅',
@@ -217,12 +227,43 @@ const Users: React.FC = () => {
       </Card>
 
       <div className={styles.header}>
-        <Search
-          placeholder="搜索用户（邮箱/姓名）"
-          style={{ width: 300 }}
-          onSearch={(value) => setSearchText(value)}
-          allowClear
-        />
+        <Space wrap>
+          <Search
+            placeholder="搜索用户（邮箱/姓名）"
+            style={{ width: 240 }}
+            onSearch={(value) => setSearchText(value)}
+            allowClear
+          />
+          <Select
+            placeholder="状态筛选"
+            allowClear
+            style={{ width: 140 }}
+            value={statusFilter}
+            onChange={(v) => setStatusFilter(v)}
+          >
+            <Select.Option value="UNVERIFIED">邮箱未激活</Select.Option>
+            <Select.Option value="PENDING">Pending</Select.Option>
+            <Select.Option value="ACTIVE">Active</Select.Option>
+            <Select.Option value="NONE">无订阅</Select.Option>
+          </Select>
+          <Select
+            style={{ width: 130 }}
+            value={sortBy}
+            onChange={(v) => setSortBy(v)}
+          >
+            <Select.Option value="created_at">创建时间</Select.Option>
+            <Select.Option value="email">邮箱</Select.Option>
+            <Select.Option value="status">状态</Select.Option>
+          </Select>
+          <Select
+            style={{ width: 80 }}
+            value={sortOrder}
+            onChange={(v) => setSortOrder(v)}
+          >
+            <Select.Option value="desc">降序</Select.Option>
+            <Select.Option value="asc">升序</Select.Option>
+          </Select>
+        </Space>
         <Space>
           <Button icon={<ReloadOutlined />} onClick={fetchUsers}>刷新</Button>
           <Button icon={<UploadOutlined />} onClick={() => setCsvModalVisible(true)}>
