@@ -1,0 +1,25 @@
+.dashboard {
+  padding: 0;
+}
+
+.statsRow {
+  margin-bottom: 24px;
+}
+
+.statCard {
+  border-radius: 8px;
+}
+
+.statValue {
+  font-size: 28px;
+  font-weight: 600;
+}
+
+.statTitle {
+  color: #666;
+  font-size: 14px;
+}
+
+.chartsRow {
+  margin-top: 24px;
+}
