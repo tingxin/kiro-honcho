@@ -14,12 +14,41 @@ from app.middleware import get_current_user
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post("/login")
 async def login(request: LoginRequest, session: AsyncSession = Depends(get_session)):
     auth_service = AuthService(session)
     result = await auth_service.login(request.username, request.password)
     if not result:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid username or password")
+    
+    # MFA required — return partial response
+    if result.get("mfa_required"):
+        return {
+            "mfa_required": True,
+            "user_id": result["user_id"],
+            "message": "Please enter your TOTP code",
+        }
+    
+    return TokenResponse(
+        access_token=result["access_token"],
+        refresh_token=result["refresh_token"],
+        token_type=result["token_type"],
+        expires_in=result["expires_in"],
+    )
+
+
+class MfaLoginRequest(BaseModel):
+    user_id: int
+    code: str
+
+
+@router.post("/login/mfa")
+async def login_mfa(request: MfaLoginRequest, session: AsyncSession = Depends(get_session)):
+    """MFA 验证后完成登录."""
+    auth_service = AuthService(session)
+    result = await auth_service.login_with_mfa(request.user_id, request.code)
+    if not result:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid TOTP code")
     return TokenResponse(
         access_token=result["access_token"],
         refresh_token=result["refresh_token"],
@@ -45,6 +74,7 @@ async def get_me(current_user: dict = Depends(get_current_user)):
         "email": current_user.get("email"),
         "is_active": current_user.get("is_active", True),
         "is_admin": current_user.get("is_admin", False),
+        "mfa_enabled": current_user.get("mfa_enabled", False),
     }
 
 
@@ -66,6 +96,57 @@ async def change_password(
     if not success:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Current password is incorrect")
     return ChangePasswordResponse(success=True, message="Password changed successfully")
+
+
+# ========== MFA ==========
+
+class MfaCodeRequest(BaseModel):
+    code: str
+
+
+@router.post("/mfa/setup")
+async def setup_mfa(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """生成 TOTP secret 和 QR code URI."""
+    auth_service = AuthService(session)
+    result = await auth_service.setup_mfa(current_user["id"])
+    # 生成 QR code base64
+    import qrcode, io, base64
+    qr = qrcode.make(result["uri"])
+    buf = io.BytesIO()
+    qr.save(buf, format="PNG")
+    qr_base64 = base64.b64encode(buf.getvalue()).decode()
+    return {
+        "secret": result["secret"],
+        "uri": result["uri"],
+        "qr_code": f"data:image/png;base64,{qr_base64}",
+    }
+
+
+@router.post("/mfa/verify")
+async def verify_mfa(
+    request: MfaCodeRequest,
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """验证 TOTP code 并启用 MFA."""
+    auth_service = AuthService(session)
+    if await auth_service.verify_and_enable_mfa(current_user["id"], request.code):
+        return {"success": True, "message": "MFA enabled"}
+    raise HTTPException(status_code=400, detail="Invalid code")
+
+
+@router.post("/mfa/disable")
+async def disable_mfa(
+    current_user: dict = Depends(get_current_user),
+    session: AsyncSession = Depends(get_session),
+):
+    """禁用 MFA."""
+    auth_service = AuthService(session)
+    await auth_service.disable_mfa(current_user["id"])
+    return {"success": True, "message": "MFA disabled"}
 
 
 # ========== 系统用户管理（仅 admin） ==========
