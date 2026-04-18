@@ -108,18 +108,8 @@ export const userService = {
     accountId: number,
     file: File,
     sendPasswordReset = true
-  ): Promise<{
-    total: number;
-    success_count: number;
-    failed_count: number;
-    results: Array<{ email: string; success: boolean; message: string }>;
-  }> {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('send_password_reset', String(sendPasswordReset));
-    const response = await api.post(`/accounts/${accountId}/batch/users/csv`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
-    });
-    return response.data;
+  ): Promise<void> {
+    // This now uses SSE streaming - handled directly in the component
+    throw new Error('Use SSE streaming endpoint instead');
   },
 };

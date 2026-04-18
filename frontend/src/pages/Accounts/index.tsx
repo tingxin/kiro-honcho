@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import {
-  Card, Table, Button, Modal, Form, Input, Select, Space, Tag, message,
+  Card, Button, Modal, Form, Input, Select, Space, Tag, message,
   Popconfirm, Typography, Descriptions,
 } from 'antd'
 import {
@@ -9,6 +9,7 @@ import {
 } from '@ant-design/icons'
 import { accountService, AWSAccount, CreateAccountRequest } from '../../services/accounts'
 import { useAccountStore } from '../../stores/accountStore'
+import ResponsiveList from '../../components/ResponsiveList'
 import styles from './Accounts.module.css'
 
 const { Title } = Typography
@@ -20,11 +21,6 @@ const regions = [
   'eu-west-1', 'eu-west-2', 'eu-central-1',
   'ap-northeast-1', 'ap-southeast-1', 'ap-southeast-2',
 ]
-
-function maskKey(key: string | undefined): string {
-  if (!key || key.length < 10) return '***'
-  return key.slice(0, 4) + '*****' + key.slice(-4)
-}
 
 export default function Accounts() {
   const [accounts, setAccounts] = useState<AWSAccount[]>([])
@@ -210,7 +206,7 @@ export default function Accounts() {
       </div>
 
       <Card>
-        <Table columns={columns} dataSource={accounts} rowKey="id" loading={loading}
+        <ResponsiveList columns={columns} dataSource={accounts} rowKey="id" loading={loading}
           pagination={{ pageSize: 10 }} scroll={{ x: 900 }} />
       </Card>
 
@@ -221,7 +217,7 @@ export default function Accounts() {
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="名称">{detailAccount.name}</Descriptions.Item>
             <Descriptions.Item label="描述">{detailAccount.description || '-'}</Descriptions.Item>
-            <Descriptions.Item label="Access Key ID">{maskKey(detailAccount.access_key_id || 'AKIA****')}</Descriptions.Item>
+            <Descriptions.Item label="Access Key ID">{detailAccount.access_key_masked || '******'}</Descriptions.Item>
             <Descriptions.Item label="SSO Region">{detailAccount.sso_region}</Descriptions.Item>
             <Descriptions.Item label="Kiro Region">{detailAccount.kiro_region}</Descriptions.Item>
             <Descriptions.Item label="状态">{getStatusTag(detailAccount.status)}</Descriptions.Item>

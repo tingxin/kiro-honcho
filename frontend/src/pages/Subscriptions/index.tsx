@@ -1,10 +1,11 @@
 import React from 'react';
-import { Table, Button, Space, Tag, Modal, Form, Select, message, Popconfirm, Tabs, Card, Typography } from 'antd';
+import { Button, Space, Tag, Modal, Form, Select, message, Popconfirm, Tabs, Card, Typography } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { useParams, useNavigate } from 'react-router-dom';
 import styles from './Subscriptions.module.css';
 import { subscriptionService, Subscription } from '../../services/subscriptions';
 import { accountService, AWSAccount } from '../../services/accounts';
+import ResponsiveList from '../../components/ResponsiveList';
 
 const { Text } = Typography;
 
@@ -104,8 +105,8 @@ const ActiveSubscriptions: React.FC<{ accountId: number; account: AWSAccount | n
         </Space>
         <Button icon={<ReloadOutlined />} onClick={fetchSubscriptions}>刷新</Button>
       </div>
-      <Table columns={columns} dataSource={subscriptions} rowKey="id" loading={loading}
-        pagination={{ total, pageSize: 100, showTotal: (t) => `共 ${t} 个订阅` }} />
+      <ResponsiveList columns={columns} dataSource={subscriptions} rowKey="id" loading={loading}
+        pagination={{ total, pageSize: 100, showTotal: (t: number) => `共 ${t} 个订阅` }} />
       <Modal title="变更套餐" open={changePlanModalVisible} onOk={() => form.submit()}
         onCancel={() => { setChangePlanModalVisible(false); form.resetFields(); }}>
         <Form form={form} onFinish={handleChangePlan} layout="vertical">
@@ -159,7 +160,12 @@ const CanceledSubscriptions: React.FC = () => {
       title: '套餐', dataIndex: 'subscription_type', key: 'subscription_type',
       render: (type: string) => <Tag>{planLabels[type] || type}</Tag>,
     },
-    { title: '状态', key: 'status', render: () => <Tag color="red">已取消</Tag> },
+    {
+      title: '状态', key: 'status', render: (_: unknown, r: CanceledSub) => {
+        if (r.status === 'Orphaned') return <Tag color="orange">用户已删除</Tag>;
+        return <Tag color="red">已取消</Tag>;
+      }
+    },
   ];
 
   return (
@@ -167,8 +173,8 @@ const CanceledSubscriptions: React.FC = () => {
       <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'flex-end' }}>
         <Button icon={<ReloadOutlined />} onClick={fetch}>刷新</Button>
       </div>
-      <Table columns={columns} dataSource={subs} rowKey="principal_id" loading={loading}
-        pagination={{ pageSize: 100, showTotal: (t) => `共 ${t} 条` }} />
+      <ResponsiveList columns={columns} dataSource={subs} rowKey="principal_id" loading={loading}
+        pagination={{ pageSize: 100, showTotal: (t: number) => `共 ${t} 条` }} />
     </>
   );
 };

@@ -81,16 +81,19 @@ async def list_subscriptions(
     result = await session.execute(query)
     subscriptions = list(result.scalars().all())
     
-    # Get user info
+    # Get user info, filter out orphaned subscriptions (user deleted from IC)
     responses = []
     for sub in subscriptions:
         user = None
         if sub.user_id:
             user_query = select(ICUser).where(ICUser.id == sub.user_id)
             user = await session.scalar(user_query)
+        # 如果订阅是 PENDING 且没有关联用户，视为已取消（用户已从 IC 删除）
+        if not user and sub.status and sub.status.upper() == "PENDING":
+            continue
         responses.append(_get_sub_response(sub, user))
     
-    return SubscriptionListResponse(total=total, subscriptions=responses)
+    return SubscriptionListResponse(total=len(responses), subscriptions=responses)
 
 
 @router.post("", response_model=SubscriptionResponse, status_code=status.HTTP_201_CREATED)

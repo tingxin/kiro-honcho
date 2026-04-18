@@ -18,6 +18,7 @@
   color: white;
   margin: 0;
   font-size: 18px;
+  white-space: nowrap;
 }
 
 .menu {
@@ -31,16 +32,20 @@
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  gap: 8px;
 }
 
 .headerLeft {
   display: flex;
   align-items: center;
+  min-width: 0;
+  flex: 1;
 }
 
 .headerRight {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .userMenu {
@@ -60,4 +65,26 @@
   background: white;
   border-radius: 8px;
   min-height: calc(100vh - 112px);
+  overflow-x: auto;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .header {
+    padding: 0 12px;
+  }
+
+  .content {
+    margin: 8px;
+    padding: 12px;
+    min-height: calc(100vh - 80px);
+  }
+
+  .logo h2 {
+    font-size: 14px;
+  }
+
+  .userMenu span:not(:first-child) {
+    display: none;
+  }
 }

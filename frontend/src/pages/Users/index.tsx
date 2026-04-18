@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-  Table, Button, Space, Input, Tag, Modal, Form, message,
+  Button, Space, Input, Tag, Modal, Form, message,
   Popconfirm, Switch, Select, Upload, Typography, Alert, Divider, Card,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
@@ -9,6 +9,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import styles from './Users.module.css';
 import { userService, User } from '../../services/users';
 import { accountService, AWSAccount } from '../../services/accounts';
+import ResponsiveList from '../../components/ResponsiveList';
 
 const { Search } = Input;
 const { Text } = Typography;
@@ -32,7 +33,9 @@ const Users: React.FC = () => {
   const [createModalVisible, setCreateModalVisible] = React.useState(false);
   const [csvModalVisible, setCsvModalVisible] = React.useState(false);
   const [csvFile, setCsvFile] = React.useState<UploadFile | null>(null);
-  const [csvUploading, setCsvUploading] = React.useState(false);
+  const [batchLogs, setBatchLogs] = React.useState<string[]>([]);
+  const [batchRunning, setBatchRunning] = React.useState(false);
+  const batchLogRef = React.useRef<HTMLDivElement>(null);
   const [searchText, setSearchText] = React.useState('');
   const [statusFilter, setStatusFilter] = React.useState<string | undefined>(undefined);
   const [sortBy, setSortBy] = React.useState<string>('created_at');
@@ -121,34 +124,72 @@ const Users: React.FC = () => {
 
   const handleCsvUpload = async () => {
     if (!csvFile?.originFileObj) return;
-    // 立即关闭弹窗
     setCsvModalVisible(false);
     const file = csvFile.originFileObj;
     setCsvFile(null);
 
-    setCsvUploading(true);
+    setBatchRunning(true);
+    setBatchLogs(['⏳ 正在上传 CSV 文件...']);
+
     try {
-      const result = await userService.batchCreateUsersCSV(accountId, file);
-      message.success(
-        `批量导入完成: ${result.success_count} 成功, ${result.failed_count} 失败`
-      );
-      if (result.failed_count > 0) {
-        const failedEmails = result.results
-          .filter((r) => !r.success)
-          .map((r) => `${r.email}: ${r.message}`)
-          .join('\n');
-        Modal.warning({
-          title: '部分用户导入失败',
-          content: <pre style={{ maxHeight: 300, overflow: 'auto' }}>{failedEmails}</pre>,
-        });
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('send_password_reset', 'true');
+
+      const authData = localStorage.getItem('kiro-auth');
+      let token = '';
+      if (authData) {
+        try { token = JSON.parse(authData).state?.accessToken || ''; } catch { }
       }
-      fetchUsers();
+
+      const response = await fetch(`/api/accounts/${accountId}/batch/users/csv/stream`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` },
+        body: formData,
+      });
+
+      if (!response.ok || !response.body) {
+        const text = await response.text();
+        setBatchLogs(prev => [...prev, `❌ 上传失败: ${text}`]);
+        return;
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              if (data.message) {
+                const time = new Date().toLocaleTimeString();
+                setBatchLogs(prev => [...prev, `[${time}] ${data.message}`]);
+              }
+            } catch { }
+          }
+        }
+      }
     } catch (error: any) {
-      message.error(error.response?.data?.detail || 'CSV 导入失败');
+      setBatchLogs(prev => [...prev, `❌ 错误: ${error.message}`]);
     } finally {
-      setCsvUploading(false);
+      setBatchRunning(false);
+      fetchUsers();
     }
   };
+
+  // Auto-scroll batch log
+  React.useEffect(() => {
+    if (batchLogRef.current) {
+      batchLogRef.current.scrollTop = batchLogRef.current.scrollHeight;
+    }
+  }, [batchLogs]);
 
   const downloadCsvTemplate = () => {
     const csv = 'email,subscription_type\nuser@example.com,Q_DEVELOPER_STANDALONE_PRO\n';
@@ -275,13 +316,12 @@ const Users: React.FC = () => {
         </Space>
       </div>
 
-      <Table
-        className={styles.table}
+      <ResponsiveList
         columns={columns}
         dataSource={users}
         rowKey="id"
         loading={loading}
-        pagination={{ total, pageSize: 200, showTotal: (t) => `共 ${t} 个用户` }}
+        pagination={{ total, pageSize: 200, showTotal: (t: number) => `共 ${t} 个用户` }}
       />
 
       {/* 创建用户 Modal */}
@@ -349,9 +389,8 @@ const Users: React.FC = () => {
         open={csvModalVisible}
         onOk={handleCsvUpload}
         onCancel={() => { setCsvModalVisible(false); setCsvFile(null); }}
-        confirmLoading={csvUploading}
         okText="开始导入"
-        okButtonProps={{ disabled: !csvFile }}
+        okButtonProps={{ disabled: !csvFile || batchRunning }}
       >
         <Alert
           message="CSV 格式说明"
@@ -381,6 +420,42 @@ const Users: React.FC = () => {
             <Button icon={<UploadOutlined />} block>选择 CSV 文件</Button>
           </Upload>
         </Space>
+      </Modal>
+
+      {/* 批量导入进度 Modal */}
+      <Modal
+        title="批量导入进度"
+        open={batchRunning || batchLogs.length > 0}
+        closable={!batchRunning}
+        maskClosable={false}
+        keyboard={false}
+        footer={
+          batchRunning
+            ? null
+            : <Button type="primary" onClick={() => setBatchLogs([])}>关闭</Button>
+        }
+        width={640}
+      >
+        <div
+          ref={batchLogRef}
+          style={{
+            background: '#1a1a1a',
+            color: '#e0e0e0',
+            padding: 12,
+            borderRadius: 6,
+            fontFamily: 'monospace',
+            fontSize: 13,
+            lineHeight: 1.6,
+            maxHeight: 400,
+            overflowY: 'auto',
+            whiteSpace: 'pre-wrap',
+          }}
+        >
+          {batchLogs.map((log, i) => (
+            <div key={i}>{log}</div>
+          ))}
+          {batchRunning && <div style={{ color: '#888' }}>⏳ 处理中...</div>}
+        </div>
       </Modal>
     </div>
   );

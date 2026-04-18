@@ -12,9 +12,29 @@ from app.schemas.aws_account import (
     AccountVerificationResponse
 )
 from app.services import AccountService
+from app.utils import get_encryption_service
 from app.middleware import get_current_user
 
 router = APIRouter(prefix="/accounts", tags=["AWS Accounts"])
+
+
+def _mask_key(encrypted_key: str) -> str:
+    """解密 AK 后掩码：前4位 + ****** + 后4位."""
+    try:
+        enc = get_encryption_service()
+        plain = enc.decrypt(encrypted_key)
+        if len(plain) <= 10:
+            return plain[:2] + "******" + plain[-2:]
+        return plain[:4] + "******" + plain[-4:]
+    except Exception:
+        return "******"
+
+
+def _account_response(acc) -> AWSAccountResponse:
+    """构建账号响应，含掩码 AK."""
+    resp = AWSAccountResponse.model_validate(acc)
+    resp.access_key_masked = _mask_key(acc.access_key_id)
+    return resp
 
 
 @router.get("/stats")
@@ -41,7 +61,7 @@ async def list_accounts(
     
     return AWSAccountListResponse(
         total=total,
-        accounts=[AWSAccountResponse.model_validate(acc) for acc in accounts]
+        accounts=[_account_response(acc) for acc in accounts]
     )
 
 
@@ -67,7 +87,7 @@ async def create_account(
         sync_interval_minutes=request.sync_interval_minutes or 0,
     )
     
-    return AWSAccountResponse.model_validate(account)
+    return _account_response(account)
 
 
 @router.get("/{account_id}", response_model=AWSAccountResponse)
@@ -86,7 +106,7 @@ async def get_account(
             detail=f"AWS account {account_id} not found"
         )
     
-    return AWSAccountResponse.model_validate(account)
+    return _account_response(account)
 
 
 @router.put("/{account_id}", response_model=AWSAccountResponse)
@@ -115,7 +135,7 @@ async def update_account(
             detail=f"AWS account {account_id} not found"
         )
     
-    return AWSAccountResponse.model_validate(account)
+    return _account_response(account)
 
 
 @router.delete("/{account_id}")

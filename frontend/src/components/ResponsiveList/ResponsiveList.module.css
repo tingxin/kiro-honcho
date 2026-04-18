@@ -1,0 +1,51 @@
+.cardList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.card {
+    border-radius: 8px;
+}
+
+.cardRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid #f0f0f0;
+    gap: 8px;
+}
+
+.cardRow:last-child {
+    border-bottom: none;
+}
+
+.cardLabel {
+    color: #888;
+    font-size: 13px;
+    flex-shrink: 0;
+    min-width: 70px;
+}
+
+.cardValue {
+    text-align: right;
+    font-size: 13px;
+    word-break: break-all;
+}
+
+.cardActions {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #f0f0f0;
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.pagination {
+    margin-top: 12px;
+    display: flex;
+    justify-content: center;
+}

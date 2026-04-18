@@ -12,3 +12,26 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+
+/* Mobile: Modal 全宽 */
+@media (max-width: 768px) {
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px auto !important;
+  }
+
+  .ant-modal .ant-modal-content {
+    padding: 12px !important;
+  }
+
+  /* 按钮组换行 */
+  .ant-space-horizontal {
+    flex-wrap: wrap;
+  }
+
+  /* 筛选器纵向 */
+  .ant-space-wrap {
+    flex-direction: column;
+    align-items: stretch !important;
+  }
+}

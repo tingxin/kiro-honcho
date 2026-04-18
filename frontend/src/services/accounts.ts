@@ -17,6 +17,7 @@ export interface AWSAccount {
   }
   sync_interval_minutes?: number
   last_synced?: string
+  access_key_masked?: string
   created_at: string
   updated_at: string
 }

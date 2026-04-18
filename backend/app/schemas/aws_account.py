@@ -40,6 +40,7 @@ class AWSAccountResponse(BaseModel):
     permissions: Optional[dict] = None
     sync_interval_minutes: Optional[int] = 0
     last_synced: Optional[datetime] = None
+    access_key_masked: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     

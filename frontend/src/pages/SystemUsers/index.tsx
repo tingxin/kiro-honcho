@@ -1,7 +1,8 @@
 import React from 'react';
-import { Table, Button, Space, Tag, Modal, Form, Input, message, Popconfirm, Card, Typography } from 'antd';
+import { Button, Space, Tag, Modal, Form, Input, message, Popconfirm, Card, Typography } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import api from '../../lib/api';
+import ResponsiveList from '../../components/ResponsiveList';
 
 const { Title } = Typography;
 
@@ -103,7 +104,7 @@ const SystemUsers: React.FC = () => {
                 </Space>
             </div>
             <Card>
-                <Table columns={columns} dataSource={users} rowKey="id" loading={loading} pagination={false} />
+                <ResponsiveList columns={columns} dataSource={users} rowKey="id" loading={loading} pagination={false} />
             </Card>
             <Modal title="添加系统用户" open={createVisible} onOk={() => form.submit()}
                 onCancel={() => { setCreateVisible(false); form.resetFields(); }}>

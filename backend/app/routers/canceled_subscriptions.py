@@ -63,15 +63,10 @@ async def list_canceled_subscriptions(
 
             for sub in subs_result["subscriptions"]:
                 sub_status = sub.get("status", "")
-                if sub_status.upper() not in ("CANCELED", "CANCELLED"):
-                    continue
-
                 principal_id = sub.get("principal", {}).get("user", "")
                 sub_type = sub.get("type", {}).get("amazonQ", "")
 
                 # 查用户信息（带缓存）
-                email = ""
-                uname = ""
                 if principal_id and principal_id not in user_cache:
                     user_info = ic_client.get_user_by_id(
                         account.identity_store_id, principal_id
@@ -79,16 +74,22 @@ async def list_canceled_subscriptions(
                     user_cache[principal_id] = user_info
                 
                 user_info = user_cache.get(principal_id)
-                if user_info:
-                    email = user_info.get("Email", "")
-                    uname = user_info.get("UserName", "")
+                email = user_info.get("Email", "") if user_info else ""
+                uname = user_info.get("UserName", "") if user_info else ""
+
+                # 已取消的订阅，或 PENDING 但用户已从 IC 删除（orphan）
+                is_canceled = sub_status.upper() in ("CANCELED", "CANCELLED")
+                is_orphan = sub_status.upper() == "PENDING" and not user_info
+
+                if not is_canceled and not is_orphan:
+                    continue
 
                 canceled.append(CanceledSubscriptionItem(
                     account_id=account.id,
                     account_name=account.name,
                     principal_id=principal_id,
                     subscription_type=sub_type,
-                    status=sub_status,
+                    status="Canceled" if is_canceled else "Orphaned",
                     user_email=email or None,
                     user_name=uname or None,
                 ))

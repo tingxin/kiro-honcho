@@ -173,19 +173,41 @@ async def create_user(
             )
         
         # Create user in Identity Center
-        username = request.user_name or request.email.split("@")[0]
         given_name = request.given_name or request.email.split("@")[0]
         family_name = request.family_name or "Mr"
         display_name = request.display_name or f"{given_name} {family_name}"
         
-        user_id = ic_client.create_user(
-            identity_store_id=account.identity_store_id,
-            username=username,
-            display_name=display_name,
-            given_name=given_name,
-            family_name=family_name,
-            email=request.email
-        )
+        # username 优先级: user_name > given_name > 邮箱前缀
+        if request.user_name:
+            username = request.user_name
+        elif request.given_name:
+            username = request.given_name.lower()
+        else:
+            username = request.email.split("@")[0]
+        
+        # 创建用户，重复 username 时 fallback 到完整邮箱
+        try:
+            user_id = ic_client.create_user(
+                identity_store_id=account.identity_store_id,
+                username=username,
+                display_name=display_name,
+                given_name=given_name,
+                family_name=family_name,
+                email=request.email
+            )
+        except Exception as e:
+            if "Duplicate" in str(e) or "Conflict" in str(e) or "duplicate" in str(e):
+                username = request.email
+                user_id = ic_client.create_user(
+                    identity_store_id=account.identity_store_id,
+                    username=username,
+                    display_name=display_name,
+                    given_name=given_name,
+                    family_name=family_name,
+                    email=request.email
+                )
+            else:
+                raise
         
         # Save to database
         ic_user = ICUser(

@@ -36,6 +36,13 @@ class KiroSubscriptionClient:
         # ListUserSubscriptions 端点使用 sso_region
         self._list_url = f"https://service.user-subscriptions.{sso_region}.amazonaws.com/"
     
+    # 订阅类型映射：旧版 -> 新版
+    _TYPE_MAP = {
+        "Q_DEVELOPER_STANDALONE_PRO": "KIRO_ENTERPRISE_PRO",
+        "Q_DEVELOPER_STANDALONE_PRO_PLUS": "KIRO_ENTERPRISE_PRO_PLUS",
+        "Q_DEVELOPER_STANDALONE_POWER": "KIRO_ENTERPRISE_PRO_POWER",
+    }
+    
     def create_assignment(
         self,
         instance_arn: str,
@@ -45,9 +52,7 @@ class KiroSubscriptionClient:
     ) -> Dict[str, Any]:
         """
         Create a Kiro subscription assignment.
-        
-        URL: codewhisperer.{kiro_region}
-        Signing: service=q, region=kiro_region (已验证 ✅)
+        如果指定类型失败，自动尝试新旧版本的类型名称。
         """
         resp = self.aws_client.sigv4_post(
             url=self._kiro_url,
@@ -61,6 +66,35 @@ class KiroSubscriptionClient:
             service="q",
             region=self.kiro_region,
         )
+        
+        # 如果失败，尝试新旧版本的类型名称
+        if resp.status_code not in (200, 201):
+            alt_type = self._TYPE_MAP.get(subscription_type)
+            if not alt_type:
+                # 反向查找：新版 -> 旧版
+                reverse_map = {v: k for k, v in self._TYPE_MAP.items()}
+                alt_type = reverse_map.get(subscription_type)
+            
+            if alt_type:
+                resp = self.aws_client.sigv4_post(
+                    url=self._kiro_url,
+                    target="AmazonQDeveloperService.CreateAssignment",
+                    payload={
+                        "instanceArn": instance_arn,
+                        "principalId": principal_id,
+                        "principalType": principal_type,
+                        "subscriptionType": alt_type,
+                    },
+                    service="q",
+                    region=self.kiro_region,
+                )
+                if resp.status_code in (200, 201):
+                    return {
+                        "success": True,
+                        "status_code": resp.status_code,
+                        "message": f"Subscription created (type: {alt_type})",
+                        "actual_type": alt_type,
+                    }
         
         return {
             "success": resp.status_code in (200, 201),

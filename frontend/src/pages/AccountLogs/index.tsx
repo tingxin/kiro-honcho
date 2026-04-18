@@ -1,8 +1,9 @@
 import React from 'react';
-import { Table, Card, Tag, Space, Select, DatePicker, Button, message } from 'antd';
+import { Card, Tag, Space, Select, DatePicker, Button, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
 import { logService, OperationLog } from '../../services/logs';
 import { useAccountStore } from '../../stores/accountStore';
+import ResponsiveList from '../../components/ResponsiveList';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
@@ -182,7 +183,7 @@ const AccountLogs: React.FC = () => {
           </Button>
         </Space>
 
-        <Table
+        <ResponsiveList
           columns={columns}
           dataSource={logs}
           rowKey="id"
@@ -191,10 +192,9 @@ const AccountLogs: React.FC = () => {
             current: pagination.current,
             pageSize: pagination.pageSize,
             total,
-            showSizeChanger: true,
-            showTotal: (total) => `共 ${total} 条`,
+            showTotal: (total: number) => `共 ${total} 条`,
+            onChange: (page: number, pageSize: number) => handleTableChange({ current: page, pageSize }),
           }}
-          onChange={handleTableChange}
         />
       </Card>
     </div>
