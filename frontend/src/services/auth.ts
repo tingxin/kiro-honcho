@@ -19,49 +19,69 @@ export interface CurrentUser {
   email?: string
   is_active: boolean
   is_admin: boolean
+  mfa_enabled: boolean
+}
+
+class MfaRequiredError {
+  mfa_required = true
+  user_id: number
+  constructor(userId: number) {
+    this.user_id = userId
+  }
 }
 
 const authService = {
-  async login(username: string, password: string): Promise<boolean> {
+  async login(username: string, password: string): Promise<boolean | 'mfa_required'> {
     try {
-      const response = await api.post<TokenResponse>('/auth/login', {
-        username,
-        password,
-      })
-      const { access_token, refresh_token } = response.data
+      // 直接用 axios 避免 interceptor 干扰
+      const response = await api.post('/auth/login', { username, password })
+      const data = response.data
 
-      // Get current user info
+      if (data.mfa_required) {
+        throw new MfaRequiredError(data.user_id)
+      }
+
+      const { access_token, refresh_token } = data
       const userResponse = await api.get<CurrentUser>('/auth/me', {
-        headers: {
-          Authorization: `Bearer ${access_token}`,
-        },
+        headers: { Authorization: `Bearer ${access_token}` },
       })
-
-      // Store tokens and set authenticated
       useAuthStore.getState().login(access_token, refresh_token, userResponse.data)
       localStorage.setItem('refresh_token', refresh_token)
-
       return true
-    } catch (error) {
+    } catch (error: any) {
+      if (error instanceof MfaRequiredError || error?.mfa_required) {
+        throw error
+      }
       console.error('Login failed:', error)
+      return false
+    }
+  },
+
+  async loginWithMfa(userId: number, code: string): Promise<boolean> {
+    try {
+      const response = await api.post<TokenResponse>('/auth/login/mfa', {
+        user_id: userId,
+        code,
+      })
+      const { access_token, refresh_token } = response.data
+      const userResponse = await api.get<CurrentUser>('/auth/me', {
+        headers: { Authorization: `Bearer ${access_token}` },
+      })
+      useAuthStore.getState().login(access_token, refresh_token, userResponse.data)
+      localStorage.setItem('refresh_token', refresh_token)
+      return true
+    } catch {
       return false
     }
   },
 
   async refresh(): Promise<TokenResponse> {
     const refreshToken = localStorage.getItem('refresh_token')
-    if (!refreshToken) {
-      throw new Error('No refresh token')
-    }
-
-    const response = await api.post<TokenResponse>('/auth/refresh', {
-      refresh_token: refreshToken,
-    })
-
+    if (!refreshToken) throw new Error('No refresh token')
+    const response = await api.post<TokenResponse>('/auth/refresh', { refresh_token: refreshToken })
     const { access_token, refresh_token } = response.data
     useAuthStore.getState().setTokens(access_token, refresh_token)
     localStorage.setItem('refresh_token', refresh_token)
-
     return response.data
   },
 
@@ -71,9 +91,7 @@ const authService = {
   },
 
   async logout(): Promise<void> {
-    try {
-      await api.post('/auth/logout')
-    } finally {
+    try { await api.post('/auth/logout') } finally {
       useAuthStore.getState().logout()
       localStorage.removeItem('refresh_token')
     }
@@ -81,15 +99,28 @@ const authService = {
 
   async changePassword(currentPassword: string, newPassword: string): Promise<boolean> {
     try {
-      await api.post('/auth/change-password', {
-        current_password: currentPassword,
-        new_password: newPassword,
-      })
+      await api.post('/auth/change-password', { current_password: currentPassword, new_password: newPassword })
       return true
-    } catch (error) {
-      console.error('Change password failed:', error)
-      return false
-    }
+    } catch { return false }
+  },
+
+  async setupMfa(): Promise<{ secret: string; uri: string; qr_code: string }> {
+    const response = await api.post('/auth/mfa/setup')
+    return response.data
+  },
+
+  async verifyMfa(code: string): Promise<boolean> {
+    try {
+      await api.post('/auth/mfa/verify', { code })
+      return true
+    } catch { return false }
+  },
+
+  async disableMfa(): Promise<boolean> {
+    try {
+      await api.post('/auth/mfa/disable')
+      return true
+    } catch { return false }
   },
 }
 

@@ -7,6 +7,7 @@ interface User {
   email?: string
   is_active: boolean
   is_admin: boolean
+  mfa_enabled: boolean
 }
 
 interface AuthState {

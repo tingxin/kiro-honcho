@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Spin, Button, Drawer } from 'antd';
+import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Spin, Button, Drawer, Modal, Input } from 'antd';
 import {
   UserOutlined, LogoutOutlined, DownOutlined,
   CloudServerOutlined, KeyOutlined, SafetyCertificateOutlined,
@@ -8,6 +8,7 @@ import {
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useAccountStore } from '../../stores/accountStore';
+import { authService } from '../../services';
 import AccountSelector from './AccountSelector';
 import ChangePasswordModal from '../ChangePasswordModal';
 import styles from './Layout.module.css';
@@ -32,10 +33,21 @@ const Layout: React.FC = () => {
   const { accounts, currentAccount, isLoading, fetchAccounts, setCurrentAccount } = useAccountStore();
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mfaModalOpen, setMfaModalOpen] = useState(false);
+  const [mfaData, setMfaData] = useState<{ qr_code: string; secret: string } | null>(null);
+  const [mfaCode, setMfaCode] = useState('');
 
   React.useEffect(() => {
     fetchAccounts();
   }, [fetchAccounts]);
+
+  // 强制未启用 MFA 的用户设置 MFA
+  const forceMfa = user && !user.mfa_enabled;
+  React.useEffect(() => {
+    if (forceMfa && !mfaData) {
+      authService.setupMfa().then(setMfaData).catch(() => { });
+    }
+  }, [forceMfa, mfaData]);
 
   // 判断当前是否在账号管理页面（不需要显示账号选择器）
   const isAccountsPage = location.pathname === '/accounts';
@@ -84,8 +96,48 @@ const Layout: React.FC = () => {
     navigate('/login');
   };
 
+  const handleSetupMfa = async () => {
+    try {
+      const data = await authService.setupMfa();
+      setMfaData(data);
+      setMfaModalOpen(true);
+    } catch { /* ignore */ }
+  };
+
+  const handleVerifyMfa = async () => {
+    const success = await authService.verifyMfa(mfaCode);
+    if (success) {
+      setMfaModalOpen(false);
+      setMfaCode('');
+      setMfaData(null);
+      // Refresh user data
+      const me = await authService.getCurrentUser();
+      useAuthStore.getState().login(
+        useAuthStore.getState().accessToken!,
+        useAuthStore.getState().refreshToken!,
+        me
+      );
+    }
+  };
+
+  const handleDisableMfa = async () => {
+    await authService.disableMfa();
+    const me = await authService.getCurrentUser();
+    useAuthStore.getState().login(
+      useAuthStore.getState().accessToken!,
+      useAuthStore.getState().refreshToken!,
+      me
+    );
+  };
+
   const userMenuItems = [
     { key: 'changePassword', icon: <KeyOutlined />, label: '修改密码', onClick: () => setPasswordModalOpen(true) },
+    {
+      key: 'mfa',
+      icon: <SafetyCertificateOutlined />,
+      label: user?.mfa_enabled ? '禁用 MFA' : '启用 MFA',
+      onClick: user?.mfa_enabled ? handleDisableMfa : handleSetupMfa,
+    },
     ...(user?.is_admin ? [{ key: 'systemUsers', icon: <UserOutlined />, label: '系统用户管理', onClick: () => navigate('/system-users') }] : []),
     { type: 'divider' as const },
     { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
@@ -167,6 +219,46 @@ const Layout: React.FC = () => {
       </AntLayout>
 
       <ChangePasswordModal open={passwordModalOpen} onClose={() => setPasswordModalOpen(false)} />
+
+      {/* MFA Setup Modal */}
+      <Modal
+        title={forceMfa ? "⚠️ 请先启用 MFA (两步验证)" : "启用 MFA (两步验证)"}
+        open={forceMfa || mfaModalOpen}
+        closable={!forceMfa}
+        maskClosable={false}
+        keyboard={false}
+        onCancel={forceMfa ? undefined : () => { setMfaModalOpen(false); setMfaCode(''); setMfaData(null); }}
+        footer={null}
+        width={400}
+      >
+        {forceMfa && !mfaData && <p style={{ textAlign: 'center' }}>正在生成 MFA 密钥...</p>}
+        {mfaData && (
+          <div style={{ textAlign: 'center' }}>
+            <p>使用 Google Authenticator 或其他 TOTP App 扫描二维码：</p>
+            <img src={mfaData.qr_code} alt="QR Code" style={{ width: 200, height: 200, margin: '16px auto' }} />
+            <p style={{ fontSize: 12, color: '#888', wordBreak: 'break-all' }}>
+              手动输入密钥: <code>{mfaData.secret}</code>
+            </p>
+            <Input
+              placeholder="输入 6 位验证码"
+              maxLength={6}
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+              style={{ textAlign: 'center', fontSize: 20, letterSpacing: 6, marginTop: 16 }}
+              onPressEnter={handleVerifyMfa}
+            />
+            <Button
+              type="primary"
+              block
+              style={{ marginTop: 12 }}
+              onClick={handleVerifyMfa}
+              disabled={mfaCode.length !== 6}
+            >
+              验证并启用
+            </Button>
+          </div>
+        )}
+      </Modal>
     </AntLayout>
   );
 };

@@ -23,15 +23,17 @@ A comprehensive web-based platform for managing multiple AWS accounts, Identity 
 |-----------|------------|
 | Backend | Python 3.11+, FastAPI, SQLAlchemy |
 | Frontend | React 18, TypeScript, Ant Design |
-| Database | SQLite (dev) / PostgreSQL (prod) |
-| Auth | JWT |
+| Database | MySQL 8.x (RDS) |
+| Auth | JWT + TOTP MFA |
 
 ## Quick Start
 
 ### Prerequisites
-- Python 3.11+
-- Node.js 18+
-- AWS Account with Q Developer Pro subscription
+- Docker 24+ & Docker Compose v2+（生产部署）
+- Python 3.11+（本地开发）
+- Node.js 18+（本地开发）
+- AWS Account with Kiro/Q Developer subscription
+- MySQL 8.x（RDS 或自建）
 
 ### Setup
 

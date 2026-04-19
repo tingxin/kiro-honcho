@@ -1,5 +1,5 @@
 import React from 'react';
-import { Table, Card, Space, Tag, Pagination, Spin, Empty } from 'antd';
+import { Table, Card, Pagination, Spin, Empty } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import styles from './ResponsiveList.module.css';
 
@@ -99,7 +99,7 @@ function ResponsiveList<T extends Record<string, any>>({
                 </Card>
             ))}
 
-            {pagination && pagination !== false && (pagination.total ?? 0) > 0 && (
+            {pagination && (pagination.total ?? 0) > 0 && (
                 <div className={styles.pagination}>
                     <Pagination
                         size="small"

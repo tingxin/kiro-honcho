@@ -1,6 +1,6 @@
 import React from 'react';
 import { Row, Col, Card, Statistic, Spin } from 'antd';
-import { UserOutlined, CloudServerOutlined, SafetyCertificateOutlined, TeamOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { UserOutlined, CloudServerOutlined, SafetyCertificateOutlined, CheckCircleOutlined } from '@ant-design/icons';
 import styles from './Dashboard.module.css';
 import { useAccountStore } from '../../stores/accountStore';
 import { accountService } from '../../services/accounts';

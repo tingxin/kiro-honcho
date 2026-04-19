@@ -34,9 +34,12 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired, redirect to login
-      localStorage.removeItem('kiro-auth')
-      window.location.href = '/login'
+      // 不拦截登录相关的 401
+      const url = error.config?.url || ''
+      if (!url.includes('/auth/login')) {
+        localStorage.removeItem('kiro-auth')
+        window.location.href = '/login'
+      }
     }
     return Promise.reject(error)
   }

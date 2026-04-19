@@ -29,3 +29,7 @@ python-dotenv>=1.0.0
 
 # Utilities
 email-validator>=2.0.0
+
+# TOTP MFA
+pyotp>=2.9.0
+qrcode[pil]>=7.4.0

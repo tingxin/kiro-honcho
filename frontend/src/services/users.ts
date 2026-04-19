@@ -105,9 +105,9 @@ export const userService = {
   },
 
   async batchCreateUsersCSV(
-    accountId: number,
-    file: File,
-    sendPasswordReset = true
+    _accountId: number,
+    _file: File,
+    _sendPasswordReset = true
   ): Promise<void> {
     // This now uses SSE streaming - handled directly in the component
     throw new Error('Use SSE streaming endpoint instead');
