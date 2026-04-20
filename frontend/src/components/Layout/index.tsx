@@ -41,18 +41,18 @@ const Layout: React.FC = () => {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  // 未启用 MFA 时弹出提醒（可关闭）
-  const [mfaReminderShown, setMfaReminderShown] = useState(false);
+  // 未启用 MFA 时弹出提醒（可关闭，仅一次）
+  const mfaReminderRef = React.useRef(false);
   React.useEffect(() => {
-    if (user && !user.mfa_enabled && !mfaReminderShown) {
-      setMfaReminderShown(true);
+    if (user && !user.mfa_enabled && !mfaReminderRef.current) {
+      mfaReminderRef.current = true;
       Modal.warning({
         title: '安全提醒',
         content: '您尚未启用 MFA（两步验证），建议尽快在右上角菜单中启用，以保障账号安全。',
         okText: '知道了',
       });
     }
-  }, [user, mfaReminderShown]);
+  }, [user]);
 
   // 判断当前是否在账号管理页面（不需要显示账号选择器）
   const isAccountsPage = location.pathname === '/accounts';
@@ -76,7 +76,6 @@ const Layout: React.FC = () => {
     { key: '/accounts', icon: <CloudServerOutlined />, label: 'AWS 账号' },
     ...(accountId
       ? [
-        { key: `/accounts/${accountId}/users`, icon: <UserOutlined />, label: '用户管理' },
         { key: `/accounts/${accountId}/subscriptions`, icon: <SafetyCertificateOutlined />, label: '订阅管理' },
         { key: `/accounts/${accountId}/logs`, icon: <FileTextOutlined />, label: '操作日志' },
       ]

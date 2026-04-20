@@ -156,7 +156,7 @@ async def create_subscription(
             user_id=ic_user.id if ic_user else None,
             principal_id=request.principal_id,
             subscription_type=request.subscription_type,
-            status="active"
+            status="PENDING"
         )
         session.add(subscription)
         await session.commit()

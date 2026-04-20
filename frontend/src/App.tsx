@@ -4,7 +4,6 @@ import Layout from './components/Layout'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Accounts from './pages/Accounts'
-import Users from './pages/Users'
 import Subscriptions from './pages/Subscriptions'
 import AccountLogs from './pages/AccountLogs'
 import SystemUsers from './pages/SystemUsers'
@@ -31,7 +30,6 @@ function App() {
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="accounts" element={<Accounts />} />
-          <Route path="accounts/:accountId/users" element={<Users />} />
           <Route path="accounts/:accountId/subscriptions" element={<Subscriptions />} />
           <Route path="accounts/:accountId/logs" element={<AccountLogs />} />
           <Route path="system-users" element={<SystemUsers />} />
