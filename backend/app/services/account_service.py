@@ -156,6 +156,7 @@ class AccountService:
         sso_region: Optional[str] = None,
         kiro_region: Optional[str] = None,
         sync_interval_minutes: Optional[int] = None,
+        is_default: Optional[bool] = None,
     ) -> Optional[AWSAccount]:
         """Update an AWS account."""
         account = await self.get_account(account_id)
@@ -176,6 +177,11 @@ class AccountService:
             account.kiro_region = kiro_region
         if sync_interval_minutes is not None:
             account.sync_interval_minutes = sync_interval_minutes
+        if is_default is not None:
+            if is_default:
+                from sqlalchemy import update
+                await self.session.execute(update(AWSAccount).values(is_default=False))
+            account.is_default = is_default
         
         account.updated_at = datetime.utcnow()
         await self.session.commit()

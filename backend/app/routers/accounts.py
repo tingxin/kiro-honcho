@@ -128,6 +128,7 @@ async def update_account(
         sso_region=request.sso_region,
         kiro_region=request.kiro_region,
         sync_interval_minutes=request.sync_interval_minutes,
+        is_default=request.is_default,
     )
     
     if not account:
