@@ -85,6 +85,7 @@ async def create_account(
         kiro_region=request.kiro_region,
         description=request.description,
         sync_interval_minutes=request.sync_interval_minutes or 0,
+        is_default=request.is_default if hasattr(request, 'is_default') else False,
     )
     
     return _account_response(account)

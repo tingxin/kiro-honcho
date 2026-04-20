@@ -99,12 +99,20 @@ class AccountService:
         description: Optional[str] = None,
         operator: Optional[str] = None,
         sync_interval_minutes: int = 0,
+        is_default: bool = False,
     ) -> AWSAccount:
         """
         Create a new AWS account.
 
         Credentials are encrypted before storage.
         """
+        # 如果设为默认，先取消其他默认
+        if is_default:
+            from sqlalchemy import update
+            await self.session.execute(
+                update(AWSAccount).values(is_default=False)
+            )
+        
         # Encrypt credentials
         encrypted_key = self.encryption.encrypt(access_key_id)
         encrypted_secret = self.encryption.encrypt(secret_access_key)
@@ -118,6 +126,7 @@ class AccountService:
             kiro_region=kiro_region,
             status="pending",
             sync_interval_minutes=sync_interval_minutes,
+            is_default=is_default,
         )
         
         self.session.add(account)

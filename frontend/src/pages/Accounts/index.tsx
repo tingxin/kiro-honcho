@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react'
 import {
   Card, Button, Modal, Form, Input, Select, Space, Tag, message,
-  Popconfirm, Typography, Descriptions,
+  Popconfirm, Typography, Descriptions, Switch,
 } from 'antd'
 import {
   PlusOutlined, SyncOutlined, CheckCircleOutlined, DeleteOutlined,
-  CloudServerOutlined, EyeOutlined,
+  CloudServerOutlined, EyeOutlined, CopyOutlined,
 } from '@ant-design/icons'
 import { accountService, AWSAccount, CreateAccountRequest } from '../../services/accounts'
 import { useAccountStore } from '../../stores/accountStore'
@@ -131,22 +131,26 @@ export default function Accounts() {
       title: '名称',
       dataIndex: 'name',
       key: 'name',
-      width: 160,
+      width: 140,
       render: (name: string) => (
         <Space><CloudServerOutlined /><span>{name}</span></Space>
       ),
     },
     {
-      title: 'SSO',
-      dataIndex: 'sso_region',
-      key: 'sso_region',
-      width: 110,
-    },
-    {
-      title: 'Kiro',
-      dataIndex: 'kiro_region',
-      key: 'kiro_region',
-      width: 110,
+      title: 'Kiro 登录 URL',
+      dataIndex: 'identity_store_id',
+      key: 'kiro_url',
+      render: (id: string) => {
+        if (!id) return <Tag>未连接</Tag>;
+        const url = `https://${id}.awsapps.com/start`;
+        return (
+          <Space size={4}>
+            <a href={url} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>{url}</a>
+            <Button type="text" size="small" icon={<CopyOutlined />}
+              onClick={() => { navigator.clipboard.writeText(url); message.success('已复制'); }} />
+          </Space>
+        );
+      },
     },
     {
       title: '状态',
@@ -154,13 +158,6 @@ export default function Accounts() {
       key: 'status',
       width: 90,
       render: getStatusTag,
-    },
-    {
-      title: 'IC',
-      dataIndex: 'identity_store_id',
-      key: 'identity_store_id',
-      width: 90,
-      render: (id: string) => id ? <Tag color="blue">✓</Tag> : <Tag>-</Tag>,
     },
     {
       title: '同步',
@@ -222,6 +219,27 @@ export default function Accounts() {
             <Descriptions.Item label="Kiro Region">{detailAccount.kiro_region}</Descriptions.Item>
             <Descriptions.Item label="状态">{getStatusTag(detailAccount.status)}</Descriptions.Item>
             <Descriptions.Item label="Instance ARN">{detailAccount.instance_arn || '-'}</Descriptions.Item>
+            <Descriptions.Item label="Kiro 登录 URL">
+              {detailAccount.identity_store_id
+                ? (() => {
+                  const url = `https://${detailAccount.identity_store_id}.awsapps.com/start`;
+                  return (
+                    <Space>
+                      <a href={url} target="_blank" rel="noreferrer">{url}</a>
+                      <Button
+                        type="text"
+                        size="small"
+                        icon={<CopyOutlined />}
+                        onClick={() => {
+                          navigator.clipboard.writeText(url);
+                          message.success('已复制');
+                        }}
+                      />
+                    </Space>
+                  );
+                })()
+                : '未连接 Identity Center'}
+            </Descriptions.Item>
             <Descriptions.Item label="Identity Store ID">{detailAccount.identity_store_id || '-'}</Descriptions.Item>
             <Descriptions.Item label="自动同步">
               {detailAccount.sync_interval_minutes ? `每 ${detailAccount.sync_interval_minutes} 分钟` : '关闭'}
@@ -244,7 +262,7 @@ export default function Accounts() {
         onCancel={() => { setModalVisible(false); form.resetFields() }}
         footer={null} width={600}>
         <Form form={form} layout="vertical" onFinish={handleCreate}
-          initialValues={{ sso_region: 'us-east-2', kiro_region: 'us-east-1', sync_interval_minutes: 0 }}>
+          initialValues={{ sso_region: 'us-east-2', kiro_region: 'us-east-1', sync_interval_minutes: 0, is_default: false }}>
           <Form.Item name="name" label="Account Name"
             rules={[{ required: true, message: 'Please enter account name' }]}>
             <Input placeholder="My AWS Account" />
@@ -277,6 +295,9 @@ export default function Accounts() {
               <Option value={30}>Every 30 min</Option>
               <Option value={60}>Every 60 min</Option>
             </Select>
+          </Form.Item>
+          <Form.Item name="is_default" label="设为默认账号" valuePropName="checked" style={{ marginTop: 8 }}>
+            <Switch />
           </Form.Item>
           <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>

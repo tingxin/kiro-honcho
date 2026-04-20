@@ -14,21 +14,24 @@ export const useAccountStore = create<AccountState>((set) => ({
   currentAccount: null,
   accounts: [],
   isLoading: false,
-  
+
   setCurrentAccount: (account) =>
     set({ currentAccount: account }),
-  
+
   setAccounts: (accounts) =>
     set({ accounts, currentAccount: accounts.length > 0 ? accounts[0] : null }),
-  
+
   fetchAccounts: async () => {
     set({ isLoading: true })
     try {
       const response = await accountService.list()
-      set({ 
-        accounts: response.accounts, 
-        currentAccount: response.accounts.length > 0 ? response.accounts[0] : null,
-        isLoading: false 
+      const accounts = response.accounts
+      // 优先选择默认账号
+      const defaultAccount = accounts.find(a => a.is_default) || (accounts.length > 0 ? accounts[0] : null)
+      set({
+        accounts,
+        currentAccount: defaultAccount,
+        isLoading: false
       })
     } catch (error) {
       set({ isLoading: false })

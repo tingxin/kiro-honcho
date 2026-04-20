@@ -31,6 +31,8 @@ class AWSAccount(Base):
     # 自动同步配置（分钟，0 或 None 表示不自动同步）
     sync_interval_minutes: Mapped[Optional[int]] = mapped_column(Integer, nullable=True, default=0)
     last_synced: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, default=False)
+    kiro_login_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

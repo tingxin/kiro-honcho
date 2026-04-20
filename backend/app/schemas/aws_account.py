@@ -13,6 +13,8 @@ class AWSAccountCreate(BaseModel):
     sso_region: str = Field(default="us-east-2")
     kiro_region: str = Field(default="us-east-1")
     sync_interval_minutes: Optional[int] = Field(default=0, ge=0, description="自动同步间隔（分钟），0 表示不自动同步")
+    is_default: bool = Field(default=False, description="是否为默认账号")
+    kiro_login_url: Optional[str] = Field(None, description="Kiro 登录 URL")
 
 
 class AWSAccountUpdate(BaseModel):
@@ -24,6 +26,8 @@ class AWSAccountUpdate(BaseModel):
     sso_region: Optional[str] = None
     kiro_region: Optional[str] = None
     sync_interval_minutes: Optional[int] = Field(None, ge=0)
+    is_default: Optional[bool] = None
+    kiro_login_url: Optional[str] = None
 
 
 class AWSAccountResponse(BaseModel):
@@ -40,6 +44,8 @@ class AWSAccountResponse(BaseModel):
     permissions: Optional[dict] = None
     sync_interval_minutes: Optional[int] = 0
     last_synced: Optional[datetime] = None
+    is_default: bool = False
+    kiro_login_url: Optional[str] = None
     access_key_masked: Optional[str] = None
     created_at: datetime
     updated_at: datetime

@@ -17,6 +17,8 @@ export interface AWSAccount {
   }
   sync_interval_minutes?: number
   last_synced?: string
+  is_default?: boolean
+  kiro_login_url?: string
   access_key_masked?: string
   created_at: string
   updated_at: string
@@ -30,6 +32,8 @@ export interface CreateAccountRequest {
   sso_region?: string
   kiro_region?: string
   sync_interval_minutes?: number
+  is_default?: boolean
+  kiro_login_url?: string
 }
 
 export interface AccountListResponse {
