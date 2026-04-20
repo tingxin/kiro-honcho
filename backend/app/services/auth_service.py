@@ -155,14 +155,18 @@ class AuthService:
         return True
 
     async def setup_mfa(self, user_id: int) -> Dict[str, str]:
-        """生成 TOTP secret 和 QR code URI，返回给前端显示."""
+        """生成 TOTP secret 和 QR code URI，如果已有 secret 则复用."""
         user = await self.session.scalar(select(AppUser).where(AppUser.id == user_id))
         if not user:
             raise ValueError("User not found")
-        secret = pyotp.random_base32()
-        user.totp_secret = secret
-        user.mfa_enabled = False  # 还没验证，先不启用
-        await self.session.commit()
+        # 如果已有 secret 且未启用，复用（避免覆盖已扫码的 secret）
+        if user.totp_secret and not user.mfa_enabled:
+            secret = user.totp_secret
+        else:
+            secret = pyotp.random_base32()
+            user.totp_secret = secret
+            user.mfa_enabled = False
+            await self.session.commit()
         totp = pyotp.TOTP(secret)
         uri = totp.provisioning_uri(name=user.username, issuer_name="Kiro Honcho")
         return {"secret": secret, "uri": uri}
