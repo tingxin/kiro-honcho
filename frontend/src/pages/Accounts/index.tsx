@@ -207,18 +207,37 @@ export default function Accounts() {
           pagination={{ pageSize: 10 }} scroll={{ x: 900 }} />
       </Card>
 
-      {/* 详情弹窗 */}
+      {/* 详情弹窗（含编辑） */}
       <Modal title="账号详情" open={!!detailAccount} onCancel={() => setDetailAccount(null)}
-        footer={<Button onClick={() => setDetailAccount(null)}>关闭</Button>} width={640}>
+        footer={
+          <Space>
+            <Button onClick={() => setDetailAccount(null)}>关闭</Button>
+            <Button type="primary" onClick={async () => {
+              if (!detailAccount) return;
+              const desc = (document.getElementById('edit-desc') as HTMLInputElement)?.value;
+              const isDefault = (document.getElementById('edit-default') as HTMLInputElement)?.checked;
+              try {
+                await accountService.update(detailAccount.id, { description: desc ?? undefined, is_default: isDefault });
+                message.success('已保存');
+                loadAccounts();
+                setDetailAccount(null);
+              } catch { message.error('保存失败'); }
+            }}>保存</Button>
+          </Space>
+        } width={640}>
         {detailAccount && (
           <Descriptions bordered column={1} size="small">
             <Descriptions.Item label="名称">{detailAccount.name}</Descriptions.Item>
-            <Descriptions.Item label="描述">{detailAccount.description || '-'}</Descriptions.Item>
+            <Descriptions.Item label="描述">
+              <Input id="edit-desc" defaultValue={detailAccount.description || ''} placeholder="输入描述" />
+            </Descriptions.Item>
+            <Descriptions.Item label="默认账号">
+              <input id="edit-default" type="checkbox" defaultChecked={detailAccount.is_default} /> 设为默认
+            </Descriptions.Item>
             <Descriptions.Item label="Access Key ID">{detailAccount.access_key_masked || '******'}</Descriptions.Item>
             <Descriptions.Item label="SSO Region">{detailAccount.sso_region}</Descriptions.Item>
             <Descriptions.Item label="Kiro Region">{detailAccount.kiro_region}</Descriptions.Item>
             <Descriptions.Item label="状态">{getStatusTag(detailAccount.status)}</Descriptions.Item>
-            <Descriptions.Item label="Instance ARN">{detailAccount.instance_arn || '-'}</Descriptions.Item>
             <Descriptions.Item label="Kiro 登录 URL">
               {detailAccount.identity_store_id
                 ? (() => {
@@ -226,15 +245,8 @@ export default function Accounts() {
                   return (
                     <Space>
                       <a href={url} target="_blank" rel="noreferrer">{url}</a>
-                      <Button
-                        type="text"
-                        size="small"
-                        icon={<CopyOutlined />}
-                        onClick={() => {
-                          navigator.clipboard.writeText(url);
-                          message.success('已复制');
-                        }}
-                      />
+                      <Button type="text" size="small" icon={<CopyOutlined />}
+                        onClick={() => { navigator.clipboard.writeText(url); message.success('已复制'); }} />
                     </Space>
                   );
                 })()
@@ -246,9 +258,6 @@ export default function Accounts() {
             </Descriptions.Item>
             <Descriptions.Item label="上次同步">
               {detailAccount.last_synced ? new Date(detailAccount.last_synced).toLocaleString() : '从未'}
-            </Descriptions.Item>
-            <Descriptions.Item label="上次验证">
-              {detailAccount.last_verified ? new Date(detailAccount.last_verified).toLocaleString() : '从未'}
             </Descriptions.Item>
             <Descriptions.Item label="创建时间">
               {new Date(detailAccount.created_at).toLocaleString()}

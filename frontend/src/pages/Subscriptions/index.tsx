@@ -12,8 +12,10 @@ const { Text } = Typography;
 const planLabels: Record<string, string> = {
   Q_DEVELOPER_STANDALONE_PRO: 'Kiro Pro',
   Q_DEVELOPER_STANDALONE_PRO_PLUS: 'Kiro Pro+',
+  Q_DEVELOPER_STANDALONE_POWER: 'Kiro Power',
   KIRO_ENTERPRISE_PRO: 'Kiro Pro',
   KIRO_ENTERPRISE_PRO_PLUS: 'Kiro Pro+',
+  KIRO_ENTERPRISE_PRO_POWER: 'Kiro Power',
 };
 
 // ========== 活跃订阅 Tab ==========
@@ -115,6 +117,7 @@ const ActiveSubscriptions: React.FC<{ accountId: number; account: AWSAccount | n
             <Select>
               <Select.Option value="Q_DEVELOPER_STANDALONE_PRO">Kiro Pro</Select.Option>
               <Select.Option value="Q_DEVELOPER_STANDALONE_PRO_PLUS">Kiro Pro+</Select.Option>
+              <Select.Option value="Q_DEVELOPER_STANDALONE_POWER">Kiro Power</Select.Option>
             </Select>
           </Form.Item>
         </Form>

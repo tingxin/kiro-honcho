@@ -17,8 +17,10 @@ const { Text } = Typography;
 const planLabels: Record<string, string> = {
   Q_DEVELOPER_STANDALONE_PRO: 'Kiro Pro',
   Q_DEVELOPER_STANDALONE_PRO_PLUS: 'Kiro Pro+',
+  Q_DEVELOPER_STANDALONE_POWER: 'Kiro Power',
   KIRO_ENTERPRISE_PRO: 'Kiro Pro',
   KIRO_ENTERPRISE_PRO_PLUS: 'Kiro Pro+',
+  KIRO_ENTERPRISE_PRO_POWER: 'Kiro Power',
 };
 
 const Users: React.FC = () => {
@@ -106,6 +108,19 @@ const Users: React.FC = () => {
       fetchUsers();
     } catch (error: any) {
       message.error(error.response?.data?.detail || '用户删除失败');
+    }
+  };
+
+  const handleResendEmail = async (userId: number) => {
+    try {
+      const result = await userService.resetPassword(accountId, userId);
+      if (result.success) {
+        message.success('激活邮件已重新发送');
+      } else {
+        message.warning(result.message);
+      }
+    } catch (error: any) {
+      message.error(error.response?.data?.detail || '发送失败');
     }
   };
 
@@ -244,6 +259,11 @@ const Users: React.FC = () => {
       width: 180,
       render: (_: unknown, record: User) => (
         <Space>
+          {!record.email_verified && (
+            <Button type="link" size="small" onClick={() => handleResendEmail(record.id)}>
+              重发邮件
+            </Button>
+          )}
           <Button type="link" size="small" onClick={() => handleResetPassword(record.id)}>
             重置密码
           </Button>
@@ -372,6 +392,7 @@ const Users: React.FC = () => {
                   <Select>
                     <Select.Option value="Q_DEVELOPER_STANDALONE_PRO">Kiro Pro</Select.Option>
                     <Select.Option value="Q_DEVELOPER_STANDALONE_PRO_PLUS">Kiro Pro+</Select.Option>
+                    <Select.Option value="Q_DEVELOPER_STANDALONE_POWER">Kiro Power</Select.Option>
                   </Select>
                 </Form.Item>
               ) : null

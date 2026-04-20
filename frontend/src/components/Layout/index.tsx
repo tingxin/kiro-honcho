@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Spin, Button, Drawer, Modal, Input } from 'antd';
+import { Layout as AntLayout, Menu, Dropdown, Avatar, Space, Spin, Button, Drawer, Modal, Input, message } from 'antd';
 import {
   UserOutlined, LogoutOutlined, DownOutlined,
   CloudServerOutlined, KeyOutlined, SafetyCertificateOutlined,
@@ -41,13 +41,18 @@ const Layout: React.FC = () => {
     fetchAccounts();
   }, [fetchAccounts]);
 
-  // 强制未启用 MFA 的用户设置 MFA
-  const forceMfa = user && !user.mfa_enabled;
+  // 未启用 MFA 时弹出提醒（可关闭）
+  const [mfaReminderShown, setMfaReminderShown] = useState(false);
   React.useEffect(() => {
-    if (forceMfa && !mfaData) {
-      authService.setupMfa().then(setMfaData).catch(() => { });
+    if (user && !user.mfa_enabled && !mfaReminderShown) {
+      setMfaReminderShown(true);
+      Modal.warning({
+        title: '安全提醒',
+        content: '您尚未启用 MFA（两步验证），建议尽快在右上角菜单中启用，以保障账号安全。',
+        okText: '知道了',
+      });
     }
-  }, [forceMfa, mfaData]);
+  }, [user, mfaReminderShown]);
 
   // 判断当前是否在账号管理页面（不需要显示账号选择器）
   const isAccountsPage = location.pathname === '/accounts';
@@ -110,13 +115,16 @@ const Layout: React.FC = () => {
       setMfaModalOpen(false);
       setMfaCode('');
       setMfaData(null);
-      // Refresh user data
+      // Refresh user data to update mfa_enabled
       const me = await authService.getCurrentUser();
       useAuthStore.getState().login(
         useAuthStore.getState().accessToken!,
         useAuthStore.getState().refreshToken!,
         me
       );
+      message.success('MFA 已启用');
+    } else {
+      message.error('验证码错误，请重试');
     }
   };
 
@@ -222,16 +230,14 @@ const Layout: React.FC = () => {
 
       {/* MFA Setup Modal */}
       <Modal
-        title={forceMfa ? "⚠️ 请先启用 MFA (两步验证)" : "启用 MFA (两步验证)"}
-        open={forceMfa || mfaModalOpen}
-        closable={!forceMfa}
+        title="启用 MFA (两步验证)"
+        open={mfaModalOpen}
+        closable
         maskClosable={false}
-        keyboard={false}
-        onCancel={forceMfa ? undefined : () => { setMfaModalOpen(false); setMfaCode(''); setMfaData(null); }}
+        onCancel={() => { setMfaModalOpen(false); setMfaCode(''); setMfaData(null); }}
         footer={null}
         width={400}
       >
-        {forceMfa && !mfaData && <p style={{ textAlign: 'center' }}>正在生成 MFA 密钥...</p>}
         {mfaData && (
           <div style={{ textAlign: 'center' }}>
             <p>使用 Google Authenticator 或其他 TOTP App 扫描二维码：</p>
