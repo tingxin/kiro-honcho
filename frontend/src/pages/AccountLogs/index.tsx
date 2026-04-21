@@ -1,6 +1,7 @@
 import React from 'react';
 import { Card, Tag, Space, Select, DatePicker, Button, message } from 'antd';
 import { ReloadOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { logService, OperationLog } from '../../services/logs';
 import { useAccountStore } from '../../stores/accountStore';
 import ResponsiveList from '../../components/ResponsiveList';
@@ -9,14 +10,14 @@ import dayjs from 'dayjs';
 const { RangePicker } = DatePicker;
 
 const operationOptions = [
-  { value: 'create_account', label: '创建账号' },
-  { value: 'verify_account', label: '验证账号' },
-  { value: 'sync_account_data', label: '同步数据' },
-  { value: 'create_user', label: '创建用户' },
-  { value: 'delete_user', label: '删除用户' },
-  { value: 'create_subscription', label: '创建订阅' },
-  { value: 'delete_subscription', label: '删除订阅' },
-  { value: 'change_plan', label: '更改计划' },
+  { value: 'create_account' },
+  { value: 'verify_account' },
+  { value: 'sync_account_data' },
+  { value: 'create_user' },
+  { value: 'delete_user' },
+  { value: 'create_subscription' },
+  { value: 'delete_subscription' },
+  { value: 'change_plan' },
 ];
 
 const statusColors: Record<string, string> = {
@@ -25,24 +26,8 @@ const statusColors: Record<string, string> = {
   pending: 'blue',
 };
 
-const statusText: Record<string, string> = {
-  success: '成功',
-  failed: '失败',
-  pending: '进行中',
-};
-
-const operationText: Record<string, string> = {
-  create_account: '创建账号',
-  verify_account: '验证账号',
-  sync_account_data: '同步数据',
-  create_user: '创建用户',
-  delete_user: '删除用户',
-  create_subscription: '创建订阅',
-  delete_subscription: '删除订阅',
-  change_plan: '更改计划',
-};
-
 const AccountLogs: React.FC = () => {
+  const { t } = useTranslation();
   const [logs, setLogs] = React.useState<OperationLog[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [total, setTotal] = React.useState(0);
@@ -99,44 +84,44 @@ const AccountLogs: React.FC = () => {
       width: 80,
     },
     {
-      title: '操作类型',
+      title: t('logs.operation'),
       dataIndex: 'operation',
       key: 'operation',
       width: 120,
-      render: (operation: string) => operationText[operation] || operation,
+      render: (operation: string) => t(`logs.operations.${operation}`, { defaultValue: operation }),
     },
     {
-      title: '操作目标',
+      title: t('logs.target'),
       dataIndex: 'target',
       key: 'target',
       width: 200,
     },
     {
-      title: '状态',
+      title: t('common.status'),
       dataIndex: 'status',
       key: 'status',
       width: 100,
       render: (status: string) => (
         <Tag color={statusColors[status] || 'default'}>
-          {statusText[status] || status}
+          {t(`logs.statuses.${status}`, { defaultValue: status })}
         </Tag>
       ),
     },
     {
-      title: '消息',
+      title: t('logs.message'),
       dataIndex: 'message',
       key: 'message',
       ellipsis: true,
     },
     {
-      title: '操作人',
+      title: t('logs.operator'),
       dataIndex: 'operator',
       key: 'operator',
       width: 150,
       render: (operator: string | null) => operator || '-',
     },
     {
-      title: '时间',
+      title: t('logs.time'),
       dataIndex: 'created_at',
       key: 'created_at',
       width: 180,
@@ -146,41 +131,36 @@ const AccountLogs: React.FC = () => {
 
   return (
     <div style={{ padding: 24 }}>
-      <Card title="操作日志">
+      <Card title={t('logs.title')}>
         <Space style={{ marginBottom: 16 }} wrap>
           <Select
-            placeholder="操作类型"
+            placeholder={t('logs.filterOperation')}
             allowClear
             style={{ width: 150 }}
-            options={operationOptions}
+            options={operationOptions.map(o => ({ value: o.value, label: t(`logs.operations.${o.value}`, { defaultValue: o.value }) }))}
             onChange={(value) => setFilters({ ...filters, operation: value })}
           />
           <Select
-            placeholder="状态"
+            placeholder={t('logs.filterStatus')}
             allowClear
             style={{ width: 120 }}
             options={[
-              { value: 'success', label: '成功' },
-              { value: 'failed', label: '失败' },
-              { value: 'pending', label: '进行中' },
+              { value: 'success', label: t('logs.statuses.success') },
+              { value: 'failed', label: t('logs.statuses.failed') },
+              { value: 'pending', label: t('logs.statuses.pending') },
             ]}
             onChange={(value) => setFilters({ ...filters, status: value })}
           />
           <RangePicker
             onChange={(dates) => {
               if (dates && dates[0] && dates[1]) {
-                setFilters({
-                  ...filters,
-                  dateRange: [dates[0], dates[1]] as [dayjs.Dayjs, dayjs.Dayjs],
-                });
+                setFilters({ ...filters, dateRange: [dates[0], dates[1]] as [dayjs.Dayjs, dayjs.Dayjs] });
               } else {
                 setFilters({ ...filters, dateRange: undefined });
               }
             }}
           />
-          <Button icon={<ReloadOutlined />} onClick={fetchLogs}>
-            刷新
-          </Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchLogs}>{t('common.refresh')}</Button>
         </Space>
 
         <ResponsiveList
@@ -192,7 +172,7 @@ const AccountLogs: React.FC = () => {
             current: pagination.current,
             pageSize: pagination.pageSize,
             total,
-            showTotal: (total: number) => `共 ${total} 条`,
+            showTotal: (n: number) => t('common.total', { count: n }),
             onChange: (page: number, pageSize: number) => handleTableChange({ current: page, pageSize }),
           }}
         />

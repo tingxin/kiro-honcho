@@ -1,13 +1,14 @@
 import React from 'react';
 import {
   Button, Space, Tag, Modal, Form, Select, Input, message,
-  Popconfirm, Card, Typography, Switch, Upload, Divider, Alert, Tabs,
+  Popconfirm, Card, Typography, Switch, Upload, Divider, Alert,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined, UploadOutlined, DownloadOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from './Subscriptions.module.css';
-import { subscriptionService, Subscription } from '../../services/subscriptions';
+import { subscriptionService } from '../../services/subscriptions';
 import { userService, User } from '../../services/users';
 import { accountService, AWSAccount } from '../../services/accounts';
 import ResponsiveList from '../../components/ResponsiveList';
@@ -40,12 +41,12 @@ function getUserLifecycleStatus(user: User): 'unsubscribed' | 'email_unverified'
   return 'unsubscribed';
 }
 
-function getStatusTag(status: string) {
+function getStatusTag(status: string, t: (key: string) => string) {
   switch (status) {
-    case 'unsubscribed': return <Tag>未订阅</Tag>;
-    case 'email_unverified': return <Tag color="red">邮箱未激活</Tag>;
-    case 'pending': return <Tag color="orange">Pending</Tag>;
-    case 'active': return <Tag color="green">Active</Tag>;
+    case 'unsubscribed': return <Tag>{t('subscriptions.status.unsubscribed')}</Tag>;
+    case 'email_unverified': return <Tag color="red">{t('subscriptions.status.emailUnverified')}</Tag>;
+    case 'pending': return <Tag color="orange">{t('subscriptions.status.pending')}</Tag>;
+    case 'active': return <Tag color="green">{t('subscriptions.status.active')}</Tag>;
     default: return <Tag>{status}</Tag>;
   }
 }
@@ -54,6 +55,7 @@ function getStatusTag(status: string) {
 const SubscriptionManagement: React.FC = () => {
   const { accountId: accountIdStr } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const accountId = Number(accountIdStr);
 
   const [account, setAccount] = React.useState<AWSAccount | null>(null);
@@ -135,55 +137,54 @@ const SubscriptionManagement: React.FC = () => {
       });
       message.success('订阅已分配');
       fetchUsers();
-    } catch (e: any) { message.error(e.response?.data?.detail || '分配失败'); }
+    } catch { message.error(t('subscriptions.subscribeFailed')); }
   };
 
   const handleChangePlan = async (values: { subscription_type: string }) => {
     if (!changePlanModal) return;
-    // Find subscription ID from the subscriptions list
     try {
       const subs = await subscriptionService.list(accountId);
       const sub = subs.subscriptions.find(s => s.principal_id === changePlanModal.user_id);
-      if (!sub) { message.error('未找到订阅'); return; }
+      if (!sub) { message.error(t('subscriptions.subscribeFailed')); return; }
       await subscriptionService.update(accountId, sub.id, values.subscription_type);
-      message.success('套餐变更成功');
+      message.success(t('subscriptions.changePlanSuccess'));
       setChangePlanModal(null);
       changePlanForm.resetFields();
       fetchUsers();
-    } catch (e: any) { message.error(e.response?.data?.detail || '变更失败'); }
+    } catch (e: any) { message.error(e.response?.data?.detail || t('subscriptions.changePlanFailed')); }
   };
 
   const handleCancelSubscription = async (user: User) => {
     try {
       const subs = await subscriptionService.list(accountId);
       const sub = subs.subscriptions.find(s => s.principal_id === user.user_id);
-      if (!sub) { message.error('未找到订阅'); return; }
+      if (!sub) { message.error(t('subscriptions.cancelFailed')); return; }
       await subscriptionService.delete(accountId, sub.id);
-      message.success('订阅已取消');
+      message.success(t('subscriptions.cancelSuccess'));
       fetchUsers();
-    } catch (e: any) { message.error(e.response?.data?.detail || '取消失败'); }
+    } catch (e: any) { message.error(e.response?.data?.detail || t('subscriptions.cancelFailed')); }
   };
 
   const handleResendEmail = async (userId: number) => {
     try {
       await userService.resetPassword(accountId, userId);
-      message.success('激活邮件已重新发送');
-    } catch { message.error('发送失败'); }
+      message.success(t('subscriptions.resendSuccess'));
+    } catch { message.error(t('subscriptions.resendFailed')); }
   };
 
   const handleResetPassword = async (userId: number) => {
     try {
       await userService.resetPassword(accountId, userId);
-      message.success('密码重置邮件已发送');
-    } catch { message.error('发送失败'); }
+      message.success(t('subscriptions.resetPasswordSuccess'));
+    } catch { message.error(t('subscriptions.resetPasswordFailed')); }
   };
 
   const handleDeleteUser = async (userId: number) => {
     try {
       await userService.deleteUser(accountId, userId);
-      message.success('用户已删除');
+      message.success(t('subscriptions.deleteSuccess'));
       fetchUsers();
-    } catch (e: any) { message.error(e.response?.data?.detail || '删除失败'); }
+    } catch (e: any) { message.error(e.response?.data?.detail || t('subscriptions.deleteFailed')); }
   };
 
   // CSV batch
@@ -246,49 +247,49 @@ const SubscriptionManagement: React.FC = () => {
 
   // ===== Columns =====
   const columns = [
-    { title: '邮箱', dataIndex: 'email', key: 'email', ellipsis: true, width: 180 },
-    { title: '用户名', dataIndex: 'user_name', key: 'user_name', width: 90, ellipsis: true },
+    { title: t('common.email'), dataIndex: 'email', key: 'email', ellipsis: true, width: 180 },
+    { title: t('common.username'), dataIndex: 'user_name', key: 'user_name', width: 90, ellipsis: true },
     {
-      title: '套餐', key: 'plan', width: 90,
+      title: t('subscriptions.plan'), key: 'plan', width: 90,
       render: (_: unknown, r: User) => {
         const type = r.subscription_type || r.pending_subscription_type;
         return type ? <Tag color="blue">{planLabels[type] || type}</Tag> : '-';
       },
     },
     {
-      title: '状态', key: 'status', width: 100,
-      render: (_: unknown, r: User) => getStatusTag(getUserLifecycleStatus(r)),
+      title: t('common.status'), key: 'status', width: 100,
+      render: (_: unknown, r: User) => getStatusTag(getUserLifecycleStatus(r), t),
     },
     {
-      title: '操作', key: 'actions', width: 280,
+      title: t('common.actions'), key: 'actions', width: 280,
       render: (_: unknown, record: User) => {
         const status = getUserLifecycleStatus(record);
         return (
           <Space wrap>
             {status === 'unsubscribed' && (
-              <Button type="link" size="small" onClick={() => handleSubscribe(record)}>订阅</Button>
+              <Button type="link" size="small" onClick={() => handleSubscribe(record)}>{t('subscriptions.actions.subscribe')}</Button>
             )}
             {status === 'email_unverified' && (
-              <Button type="link" size="small" onClick={() => handleResendEmail(record.id)}>重发邮件</Button>
+              <Button type="link" size="small" onClick={() => handleResendEmail(record.id)}>{t('subscriptions.actions.resendEmail')}</Button>
             )}
             {(status === 'pending' || status === 'active') && (
               <>
                 <Button type="link" size="small" onClick={() => {
                   setChangePlanModal(record);
                   changePlanForm.setFieldsValue({ subscription_type: record.subscription_type });
-                }}>变更套餐</Button>
-                <Popconfirm title="确定取消订阅？" onConfirm={() => handleCancelSubscription(record)}>
-                  <Button type="link" size="small" danger>取消订阅</Button>
+                }}>{t('subscriptions.actions.changePlan')}</Button>
+                <Popconfirm title={t('subscriptions.cancelConfirm')} onConfirm={() => handleCancelSubscription(record)}>
+                  <Button type="link" size="small" danger>{t('subscriptions.actions.cancelSubscription')}</Button>
                 </Popconfirm>
               </>
             )}
-            <Button type="link" size="small" onClick={() => handleResetPassword(record.id)}>重置密码</Button>
+            <Button type="link" size="small" onClick={() => handleResetPassword(record.id)}>{t('subscriptions.actions.resetPassword')}</Button>
             <Popconfirm
-              title="删除用户"
-              description={record.has_subscription ? "删除前会自动取消该用户的 Kiro 订阅" : "确定删除该用户？"}
+              title={t('subscriptions.deleteConfirm')}
+              description={record.has_subscription ? t('subscriptions.deleteWithSubWarning') : t('subscriptions.deleteConfirmText')}
               onConfirm={() => handleDeleteUser(record.id)}
             >
-              <Button type="link" size="small" danger>删除</Button>
+              <Button type="link" size="small" danger>{t('subscriptions.actions.delete')}</Button>
             </Popconfirm>
           </Space>
         );
@@ -300,7 +301,7 @@ const SubscriptionManagement: React.FC = () => {
     <div className={styles.subscriptions}>
       <Card size="small" style={{ marginBottom: 16 }}>
         <Space>
-          <Text strong>当前账号:</Text>
+          <Text strong>{t('subscriptions.currentAccount')}:</Text>
           <Tag color="blue">{account?.name || '...'}</Tag>
           <Tag color={account?.status === 'active' ? 'green' : 'orange'}>{account?.status}</Tag>
         </Space>
@@ -308,44 +309,44 @@ const SubscriptionManagement: React.FC = () => {
 
       <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
         <Space wrap>
-          <Search placeholder="搜索邮箱/用户名" style={{ width: 220 }} onSearch={setSearchText} allowClear />
-          <Select placeholder="状态" allowClear style={{ width: 130 }} value={statusFilter} onChange={setStatusFilter}>
-            <Select.Option value="UNVERIFIED">邮箱未激活</Select.Option>
-            <Select.Option value="PENDING">Pending</Select.Option>
-            <Select.Option value="ACTIVE">Active</Select.Option>
-            <Select.Option value="NONE">未订阅</Select.Option>
+          <Search placeholder={t('subscriptions.searchPlaceholder')} style={{ width: 220 }} onSearch={setSearchText} allowClear />
+          <Select placeholder={t('subscriptions.filterStatus')} allowClear style={{ width: 130 }} value={statusFilter} onChange={setStatusFilter}>
+            <Select.Option value="UNVERIFIED">{t('subscriptions.status.emailUnverified')}</Select.Option>
+            <Select.Option value="PENDING">{t('subscriptions.status.pending')}</Select.Option>
+            <Select.Option value="ACTIVE">{t('subscriptions.status.active')}</Select.Option>
+            <Select.Option value="NONE">{t('subscriptions.status.unsubscribed')}</Select.Option>
           </Select>
         </Space>
         <Space wrap>
-          <Button icon={<ReloadOutlined />} onClick={fetchUsers}>刷新</Button>
-          <Button icon={<UploadOutlined />} onClick={() => setCsvModalVisible(true)}>CSV 导入</Button>
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>添加用户</Button>
+          <Button icon={<ReloadOutlined />} onClick={fetchUsers}>{t('common.refresh')}</Button>
+          <Button icon={<UploadOutlined />} onClick={() => setCsvModalVisible(true)}>{t('subscriptions.csvImport')}</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateModalVisible(true)}>{t('subscriptions.addUser')}</Button>
         </Space>
       </div>
 
       <ResponsiveList columns={columns} dataSource={users} rowKey="id" loading={loading}
-        pagination={{ total, pageSize: 500, showTotal: (t: number) => `共 ${t} 人` }}
+        pagination={{ total, pageSize: 500, showTotal: (n: number) => `${t('common.total', { count: n })}` }}
         scroll={{ x: 740 }} />
 
       {/* 创建用户 */}
-      <Modal title="添加用户" open={createModalVisible} onOk={() => createForm.submit()}
+      <Modal title={t('subscriptions.createUserTitle')} open={createModalVisible} onOk={() => createForm.submit()}
         onCancel={() => { setCreateModalVisible(false); createForm.resetFields(); }} width={480}>
-        <Alert message="用户将加入 Identity Center 并分配 Kiro 订阅，同时发送激活邮件" type="info" showIcon style={{ marginBottom: 16 }} />
+        <Alert message={t('subscriptions.createUserHint')} type="info" showIcon style={{ marginBottom: 16 }} />
         <Form form={createForm} onFinish={handleCreateUser} layout="vertical"
           initialValues={{ auto_subscribe: true, subscription_type: 'Q_DEVELOPER_STANDALONE_PRO' }}>
-          <Form.Item name="email" label="邮箱" rules={[{ required: true, type: 'email' }]}>
+          <Form.Item name="email" label={t('common.email')} rules={[{ required: true, type: 'email' }]}>
             <Input placeholder="user@example.com" />
           </Form.Item>
           <Space style={{ width: '100%' }}>
-            <Form.Item name="given_name" label="名" style={{ flex: 1 }}><Input placeholder="可选" /></Form.Item>
-            <Form.Item name="family_name" label="姓" style={{ flex: 1 }}><Input placeholder="可选" /></Form.Item>
+            <Form.Item name="given_name" label={t('subscriptions.givenName')} style={{ flex: 1 }}><Input placeholder={t('subscriptions.optional')} /></Form.Item>
+            <Form.Item name="family_name" label={t('subscriptions.familyName')} style={{ flex: 1 }}><Input placeholder={t('subscriptions.optional')} /></Form.Item>
           </Space>
-          <Form.Item name="auto_subscribe" label="立即分配订阅" valuePropName="checked"><Switch /></Form.Item>
+          <Form.Item name="auto_subscribe" label={t('subscriptions.autoSubscribe')} valuePropName="checked"><Switch /></Form.Item>
           <Form.Item noStyle shouldUpdate={(p, c) => p.auto_subscribe !== c.auto_subscribe}>
             {({ getFieldValue }) => getFieldValue('auto_subscribe') ? (
-              <Form.Item name="subscription_type" label="套餐">
+              <Form.Item name="subscription_type" label={t('subscriptions.plan')}>
                 <Select>
-                  <Select.Option value="Q_DEVELOPER_STANDALONE_PRO">Kiro Pro</Select.Option>
+                  <Select.Option value="Q_DEVELOPER_STANDALONE_PRO">{t('subscriptions.plans.pro')}</Select.Option>
                   <Select.Option value="Q_DEVELOPER_STANDALONE_PRO_PLUS">Kiro Pro+</Select.Option>
                   <Select.Option value="Q_DEVELOPER_STANDALONE_POWER">Kiro Power</Select.Option>
                 </Select>
@@ -356,44 +357,43 @@ const SubscriptionManagement: React.FC = () => {
       </Modal>
 
       {/* 变更套餐 */}
-      <Modal title="变更套餐" open={!!changePlanModal} onOk={() => changePlanForm.submit()}
+      <Modal title={t('subscriptions.changePlanTitle')} open={!!changePlanModal} onOk={() => changePlanForm.submit()}
         onCancel={() => { setChangePlanModal(null); changePlanForm.resetFields(); }}>
-        <p>用户: {changePlanModal?.email}</p>
+        <p>{t('common.email')}: {changePlanModal?.email}</p>
         <Form form={changePlanForm} onFinish={handleChangePlan} layout="vertical">
-          <Form.Item name="subscription_type" label="套餐" rules={[{ required: true }]}>
+          <Form.Item name="subscription_type" label={t('subscriptions.plan')} rules={[{ required: true }]}>
             <Select>
-              <Select.Option value="Q_DEVELOPER_STANDALONE_PRO">Kiro Pro</Select.Option>
-              <Select.Option value="Q_DEVELOPER_STANDALONE_PRO_PLUS">Kiro Pro+</Select.Option>
-              <Select.Option value="Q_DEVELOPER_STANDALONE_POWER">Kiro Power</Select.Option>
+              <Select.Option value="Q_DEVELOPER_STANDALONE_PRO">{t('subscriptions.plans.pro')}</Select.Option>
+              <Select.Option value="Q_DEVELOPER_STANDALONE_PRO_PLUS">{t('subscriptions.plans.proPlus')}</Select.Option>
+              <Select.Option value="Q_DEVELOPER_STANDALONE_POWER">{t('subscriptions.plans.power')}</Select.Option>
             </Select>
           </Form.Item>
         </Form>
       </Modal>
 
       {/* CSV 导入 */}
-      <Modal title="CSV 批量导入" open={csvModalVisible} onOk={handleCsvUpload}
+      <Modal title={t('subscriptions.csvTitle')} open={csvModalVisible} onOk={handleCsvUpload}
         onCancel={() => { setCsvModalVisible(false); setCsvFile(null); }}
-        okText="开始导入" okButtonProps={{ disabled: !csvFile || batchRunning }}>
-        <Alert message={<>必填: <Text code>email</Text>，可选: <Text code>subscription_type</Text> (默认 Pro)</>}
-          type="info" showIcon style={{ marginBottom: 16 }} />
-        <Button icon={<DownloadOutlined />} onClick={downloadCsvTemplate} type="dashed" block>下载模板</Button>
+        okText={t('common.confirm')} okButtonProps={{ disabled: !csvFile || batchRunning }}>
+        <Alert message={<>{t('subscriptions.csvHint')}</>} type="info" showIcon style={{ marginBottom: 16 }} />
+        <Button icon={<DownloadOutlined />} onClick={downloadCsvTemplate} type="dashed" block>{t('subscriptions.downloadTemplate')}</Button>
         <Divider />
         <Upload accept=".csv" maxCount={1} beforeUpload={() => false}
           fileList={csvFile ? [csvFile] : []} onChange={({ fileList }) => setCsvFile(fileList[0] || null)}>
-          <Button icon={<UploadOutlined />} block>选择 CSV</Button>
+          <Button icon={<UploadOutlined />} block>{t('subscriptions.selectCsv')}</Button>
         </Upload>
       </Modal>
 
       {/* 批量进度 */}
-      <Modal title="批量导入进度" open={batchRunning || batchLogs.length > 0}
+      <Modal title={t('subscriptions.batchProgress')} open={batchRunning || batchLogs.length > 0}
         closable={!batchRunning} maskClosable={false}
-        footer={batchRunning ? null : <Button type="primary" onClick={() => setBatchLogs([])}>关闭</Button>} width={640}>
+        footer={batchRunning ? null : <Button type="primary" onClick={() => setBatchLogs([])}>{t('common.close')}</Button>} width={640}>
         <div ref={batchLogRef} style={{
           background: '#1a1a1a', color: '#e0e0e0', padding: 12, borderRadius: 6,
           fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6, maxHeight: 400, overflowY: 'auto', whiteSpace: 'pre-wrap',
         }}>
           {batchLogs.map((log, i) => <div key={i}>{log}</div>)}
-          {batchRunning && <div style={{ color: '#888' }}>⏳ 处理中...</div>}
+          {batchRunning && <div style={{ color: '#888' }}>⏳ {t('subscriptions.processing')}</div>}
         </div>
       </Modal>
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Form, Input, message } from 'antd';
 import { LockOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import { authService } from '../../services';
 
 interface ChangePasswordModalProps {
@@ -11,85 +12,56 @@ interface ChangePasswordModalProps {
 const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({ open, onClose }) => {
   const [loading, setLoading] = useState(false);
   const [form] = Form.useForm();
+  const { t } = useTranslation();
 
   const handleSubmit = async (values: { currentPassword: string; newPassword: string; confirmPassword: string }) => {
-    if (values.newPassword !== values.confirmPassword) {
-      message.error('两次输入的新密码不一致');
-      return;
-    }
-
     setLoading(true);
     try {
       const success = await authService.changePassword(values.currentPassword, values.newPassword);
       if (success) {
-        message.success('密码修改成功');
+        message.success(t('password.changeSuccess'));
         form.resetFields();
         onClose();
       } else {
-        message.error('密码修改失败，请检查当前密码是否正确');
+        message.error(t('password.changeFailed'));
       }
-    } catch (error) {
-      message.error('密码修改失败');
+    } catch {
+      message.error(t('password.changeFailed'));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCancel = () => {
-    form.resetFields();
-    onClose();
-  };
-
   return (
     <Modal
-      title="修改密码"
+      title={t('password.changeTitle')}
       open={open}
-      onCancel={handleCancel}
+      onCancel={() => { form.resetFields(); onClose(); }}
       onOk={() => form.submit()}
       confirmLoading={loading}
-      okText="确认修改"
-      cancelText="取消"
+      okText={t('password.confirmChange')}
+      cancelText={t('common.cancel')}
     >
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={handleSubmit}
-      >
-        <Form.Item
-          name="currentPassword"
-          label="当前密码"
-          rules={[{ required: true, message: '请输入当前密码' }]}
-        >
-          <Input.Password prefix={<LockOutlined />} placeholder="请输入当前密码" />
+      <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        <Form.Item name="currentPassword" label={t('password.current')}
+          rules={[{ required: true, message: t('password.current') }]}>
+          <Input.Password prefix={<LockOutlined />} placeholder={t('password.current')} />
         </Form.Item>
-
-        <Form.Item
-          name="newPassword"
-          label="新密码"
-          rules={[
-            { required: true, message: '请输入新密码' },
-            { min: 6, message: '密码至少6位' },
-          ]}
-        >
-          <Input.Password prefix={<LockOutlined />} placeholder="请输入新密码" />
+        <Form.Item name="newPassword" label={t('password.new')}
+          rules={[{ required: true }, { min: 6, message: t('password.minLength') }]}>
+          <Input.Password prefix={<LockOutlined />} placeholder={t('password.new')} />
         </Form.Item>
-
-        <Form.Item
-          name="confirmPassword"
-          label="确认新密码"
+        <Form.Item name="confirmPassword" label={t('password.confirm')}
           rules={[
-            { required: true, message: '请确认新密码' },
+            { required: true },
             ({ getFieldValue }) => ({
               validator(_, value) {
-                if (!value || getFieldValue('newPassword') === value) {
-                  return Promise.resolve();
-                }
-                return Promise.reject(new Error('两次输入的密码不一致'));
+                if (!value || getFieldValue('newPassword') === value) return Promise.resolve();
+                return Promise.reject(new Error(t('password.mismatch')));
               },
             }),
-          ]}
-        >
-          <Input.Password prefix={<LockOutlined />} placeholder="请再次输入新密码" />
+          ]}>
+          <Input.Password prefix={<LockOutlined />} placeholder={t('password.confirm')} />
         </Form.Item>
       </Form>
     </Modal>

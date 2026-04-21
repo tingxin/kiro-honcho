@@ -1,6 +1,7 @@
 import React from 'react';
 import { Row, Col, Card, Statistic, Spin } from 'antd';
 import { UserOutlined, CloudServerOutlined, SafetyCertificateOutlined, CheckCircleOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import styles from './Dashboard.module.css';
 import { useAccountStore } from '../../stores/accountStore';
 import { accountService } from '../../services/accounts';
@@ -14,6 +15,7 @@ interface DashboardStats {
 }
 
 const Dashboard: React.FC = () => {
+  const { t } = useTranslation();
   const { currentAccount } = useAccountStore();
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [loading, setLoading] = React.useState(false);
@@ -47,7 +49,7 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card className={styles.statCard}>
             <Statistic
-              title={<span className={styles.statTitle}>Identity Center 用户</span>}
+              title={<span className={styles.statTitle}>{t('dashboard.icUsers')}</span>}
               value={stats?.total_users ?? 0}
               prefix={<UserOutlined />}
             />
@@ -56,7 +58,7 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card className={styles.statCard}>
             <Statistic
-              title={<span className={styles.statTitle}>Kiro 订阅用户</span>}
+              title={<span className={styles.statTitle}>{t('dashboard.subscribedUsers')}</span>}
               value={stats?.subscribed_users ?? 0}
               prefix={<SafetyCertificateOutlined />}
             />
@@ -65,7 +67,7 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card className={styles.statCard}>
             <Statistic
-              title={<span className={styles.statTitle}>活跃订阅</span>}
+              title={<span className={styles.statTitle}>{t('dashboard.activeSubscriptions')}</span>}
               value={stats?.active_subscriptions ?? 0}
               prefix={<CheckCircleOutlined />}
               valueStyle={{ color: '#3f8600' }}
@@ -75,7 +77,7 @@ const Dashboard: React.FC = () => {
         <Col xs={24} sm={12} lg={6}>
           <Card className={styles.statCard}>
             <Statistic
-              title={<span className={styles.statTitle}>AWS 账号</span>}
+              title={<span className={styles.statTitle}>{t('dashboard.awsAccounts')}</span>}
               value={`${stats?.active_accounts ?? 0} / ${stats?.total_accounts ?? 0}`}
               prefix={<CloudServerOutlined />}
             />

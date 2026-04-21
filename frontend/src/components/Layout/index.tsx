@@ -9,6 +9,7 @@ import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useAccountStore } from '../../stores/accountStore';
 import { authService } from '../../services';
+import { useTranslation } from 'react-i18next';
 import AccountSelector from './AccountSelector';
 import ChangePasswordModal from '../ChangePasswordModal';
 import styles from './Layout.module.css';
@@ -30,6 +31,7 @@ const Layout: React.FC = () => {
   const location = useLocation();
   const isMobile = useIsMobile();
   const { user, logout } = useAuthStore();
+  const { t, i18n } = useTranslation();
   const { accounts, currentAccount, isLoading, fetchAccounts, setCurrentAccount } = useAccountStore();
   const [passwordModalOpen, setPasswordModalOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -47,9 +49,9 @@ const Layout: React.FC = () => {
     if (user && !user.mfa_enabled && !mfaReminderRef.current) {
       mfaReminderRef.current = true;
       Modal.warning({
-        title: '安全提醒',
-        content: '您尚未启用 MFA（两步验证），建议尽快在右上角菜单中启用，以保障账号安全。',
-        okText: '知道了',
+        title: t('mfa.reminder'),
+        content: t('mfa.reminderContent'),
+        okText: t('mfa.understood'),
       });
     }
   }, [user]);
@@ -72,15 +74,15 @@ const Layout: React.FC = () => {
   const accountId = currentAccount?.id;
 
   const menuItems = useMemo(() => [
-    { key: '/dashboard', icon: <DashboardOutlined />, label: '仪表盘' },
-    { key: '/accounts', icon: <CloudServerOutlined />, label: 'AWS 账号' },
+    { key: '/dashboard', icon: <DashboardOutlined />, label: t('nav.dashboard') },
+    { key: '/accounts', icon: <CloudServerOutlined />, label: t('nav.accounts') },
     ...(accountId
       ? [
-        { key: `/accounts/${accountId}/subscriptions`, icon: <SafetyCertificateOutlined />, label: '订阅管理' },
-        { key: `/accounts/${accountId}/logs`, icon: <FileTextOutlined />, label: '操作日志' },
+        { key: `/accounts/${accountId}/subscriptions`, icon: <SafetyCertificateOutlined />, label: t('nav.subscriptions') },
+        { key: `/accounts/${accountId}/logs`, icon: <FileTextOutlined />, label: t('nav.logs') },
       ]
       : []),
-  ], [accountId]);
+  ], [accountId, t]);
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
@@ -138,16 +140,27 @@ const Layout: React.FC = () => {
   };
 
   const userMenuItems = [
-    { key: 'changePassword', icon: <KeyOutlined />, label: '修改密码', onClick: () => setPasswordModalOpen(true) },
+    { key: 'changePassword', icon: <KeyOutlined />, label: t('nav.changePassword'), onClick: () => setPasswordModalOpen(true) },
     {
       key: 'mfa',
       icon: <SafetyCertificateOutlined />,
-      label: user?.mfa_enabled ? '禁用 MFA' : '启用 MFA',
+      label: user?.mfa_enabled ? t('nav.disableMfa') : t('nav.enableMfa'),
       onClick: user?.mfa_enabled ? handleDisableMfa : handleSetupMfa,
     },
-    ...(user?.is_admin ? [{ key: 'systemUsers', icon: <UserOutlined />, label: '系统用户管理', onClick: () => navigate('/system-users') }] : []),
+    ...(user?.is_admin ? [{ key: 'systemUsers', icon: <UserOutlined />, label: t('nav.systemUsers'), onClick: () => navigate('/system-users') }] : []),
     { type: 'divider' as const },
-    { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
+    {
+      key: 'lang',
+      icon: <span>🌐</span>,
+      label: i18n.language === 'zh' ? '中文' : i18n.language === 'de' ? 'Deutsch' : 'English',
+      children: [
+        { key: 'lang-zh', label: '中文', onClick: () => { i18n.changeLanguage('zh'); localStorage.setItem('kiro-lang', 'zh'); } },
+        { key: 'lang-en', label: 'English', onClick: () => { i18n.changeLanguage('en'); localStorage.setItem('kiro-lang', 'en'); } },
+        { key: 'lang-de', label: 'Deutsch', onClick: () => { i18n.changeLanguage('de'); localStorage.setItem('kiro-lang', 'de'); } },
+      ],
+    },
+    { type: 'divider' as const },
+    { key: 'logout', icon: <LogoutOutlined />, label: t('nav.logout'), onClick: handleLogout },
   ];
 
   const siderMenu = (
@@ -229,8 +242,7 @@ const Layout: React.FC = () => {
 
       {/* MFA Setup Modal */}
       <Modal
-        title="启用 MFA (两步验证)"
-        open={mfaModalOpen}
+        title={t('mfa.setupTitle')} open={mfaModalOpen}
         closable
         maskClosable={false}
         onCancel={() => { setMfaModalOpen(false); setMfaCode(''); setMfaData(null); }}
@@ -239,27 +251,22 @@ const Layout: React.FC = () => {
       >
         {mfaData && (
           <div style={{ textAlign: 'center' }}>
-            <p>使用 Google Authenticator 或其他 TOTP App 扫描二维码：</p>
+            <p>{t('mfa.scanQr')}</p>
             <img src={mfaData.qr_code} alt="QR Code" style={{ width: 200, height: 200, margin: '16px auto' }} />
             <p style={{ fontSize: 12, color: '#888', wordBreak: 'break-all' }}>
-              手动输入密钥: <code>{mfaData.secret}</code>
+              {t('mfa.manualKey')}: <code>{mfaData.secret}</code>
             </p>
             <Input
-              placeholder="输入 6 位验证码"
+              placeholder={t('mfa.enterCode')}
               maxLength={6}
               value={mfaCode}
               onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
               style={{ textAlign: 'center', fontSize: 20, letterSpacing: 6, marginTop: 16 }}
               onPressEnter={handleVerifyMfa}
             />
-            <Button
-              type="primary"
-              block
-              style={{ marginTop: 12 }}
-              onClick={handleVerifyMfa}
-              disabled={mfaCode.length !== 6}
-            >
-              验证并启用
+            <Button type="primary" block style={{ marginTop: 12 }}
+              onClick={handleVerifyMfa} disabled={mfaCode.length !== 6}>
+              {t('mfa.verifyEnable')}
             </Button>
           </div>
         )}

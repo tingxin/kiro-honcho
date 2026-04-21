@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Form, Input, Button, Card, message } from 'antd'
 import { UserOutlined, LockOutlined, CloudServerOutlined, SafetyOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { authService } from '../../services'
 import styles from './Login.module.css'
 
@@ -11,27 +12,24 @@ export default function Login() {
   const [mfaUserId, setMfaUserId] = useState<number | null>(null)
   const [mfaCode, setMfaCode] = useState('')
   const navigate = useNavigate()
+  const { t } = useTranslation()
 
   const onFinish = async (values: { username: string; password: string }) => {
     setLoading(true)
     try {
       const result = await authService.login(values.username, values.password)
-      if (result === 'mfa_required') {
-        // handled inside authService, it sets mfaUserId
-        return
-      }
       if (result) {
-        message.success('Login successful!')
+        message.success(t('common.success'))
         navigate('/dashboard')
       } else {
-        message.error('Invalid username or password')
+        message.error(t('login.invalidCredentials'))
       }
     } catch (error: any) {
       if (error.mfa_required) {
         setMfaStep(true)
         setMfaUserId(error.user_id)
       } else {
-        message.error('Login failed. Please try again.')
+        message.error(t('login.loginFailed'))
       }
     } finally {
       setLoading(false)
@@ -44,13 +42,13 @@ export default function Login() {
     try {
       const success = await authService.loginWithMfa(mfaUserId, mfaCode)
       if (success) {
-        message.success('Login successful!')
+        message.success(t('common.success'))
         navigate('/dashboard')
       } else {
-        message.error('Invalid TOTP code')
+        message.error(t('login.mfaInvalid'))
       }
     } catch {
-      message.error('MFA verification failed')
+      message.error(t('login.loginFailed'))
     } finally {
       setLoading(false)
     }
@@ -61,27 +59,25 @@ export default function Login() {
       <Card className={styles.card}>
         <div className={styles.header}>
           <CloudServerOutlined className={styles.icon} />
-          <h1>Kiro Honcho</h1>
-          <p>Multi-AWS Account Management Platform</p>
+          <h1>{t('login.title')}</h1>
+          <p>{t('login.subtitle')}</p>
         </div>
 
         {!mfaStep ? (
           <Form name="login" onFinish={onFinish} autoComplete="off" layout="vertical" size="large">
-            <Form.Item name="username" rules={[{ required: true, message: 'Please input your username!' }]}>
-              <Input prefix={<UserOutlined />} placeholder="Username" />
+            <Form.Item name="username" rules={[{ required: true, message: t('login.username') }]}>
+              <Input prefix={<UserOutlined />} placeholder={t('login.username')} />
             </Form.Item>
-            <Form.Item name="password" rules={[{ required: true, message: 'Please input your password!' }]}>
-              <Input.Password prefix={<LockOutlined />} placeholder="Password" />
+            <Form.Item name="password" rules={[{ required: true, message: t('login.password') }]}>
+              <Input.Password prefix={<LockOutlined />} placeholder={t('login.password')} />
             </Form.Item>
             <Form.Item>
-              <Button type="primary" htmlType="submit" loading={loading} block>Login</Button>
+              <Button type="primary" htmlType="submit" loading={loading} block>{t('login.login')}</Button>
             </Form.Item>
           </Form>
         ) : (
           <div>
-            <p style={{ textAlign: 'center', marginBottom: 16, color: '#666' }}>
-              请输入 Authenticator App 中的 6 位验证码
-            </p>
+            <p style={{ textAlign: 'center', marginBottom: 16, color: '#666' }}>{t('login.mfaHint')}</p>
             <Input
               prefix={<SafetyOutlined />}
               placeholder="000000"
@@ -92,18 +88,13 @@ export default function Login() {
               style={{ textAlign: 'center', fontSize: 24, letterSpacing: 8 }}
               onPressEnter={onMfaSubmit}
             />
-            <Button
-              type="primary"
-              loading={loading}
-              block
-              style={{ marginTop: 16 }}
-              onClick={onMfaSubmit}
-              disabled={mfaCode.length !== 6}
-            >
-              验证
+            <Button type="primary" loading={loading} block style={{ marginTop: 16 }}
+              onClick={onMfaSubmit} disabled={mfaCode.length !== 6}>
+              {t('login.mfaVerify')}
             </Button>
-            <Button type="link" block style={{ marginTop: 8 }} onClick={() => { setMfaStep(false); setMfaCode(''); }}>
-              返回登录
+            <Button type="link" block style={{ marginTop: 8 }}
+              onClick={() => { setMfaStep(false); setMfaCode(''); }}>
+              {t('login.mfaBack')}
             </Button>
           </div>
         )}

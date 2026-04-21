@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button, Space, Tag, Modal, Form, Input, message, Popconfirm, Card, Typography } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
+import { useTranslation } from 'react-i18next';
 import api from '../../lib/api';
 import ResponsiveList from '../../components/ResponsiveList';
 
@@ -19,6 +20,7 @@ const SystemUsers: React.FC = () => {
     const [loading, setLoading] = React.useState(false);
     const [createVisible, setCreateVisible] = React.useState(false);
     const [form] = Form.useForm();
+    const { t } = useTranslation();
 
     const fetchUsers = React.useCallback(async () => {
         setLoading(true);
@@ -26,67 +28,67 @@ const SystemUsers: React.FC = () => {
             const resp = await api.get<SystemUser[]>('/auth/users');
             setUsers(resp.data);
         } catch (error: any) {
-            if (error.response?.status === 403) {
-                message.error('仅管理员可访问');
-            } else {
-                message.error('获取用户列表失败');
-            }
+            message.error(error.response?.status === 403 ? 'Admin only' : t('common.failed'));
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [t]);
 
     React.useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
     const handleCreate = async (values: { username: string; password: string; email?: string }) => {
         try {
             await api.post('/auth/users', values);
-            message.success('用户创建成功');
+            message.success(t('systemUsers.createSuccess'));
             setCreateVisible(false);
             form.resetFields();
             fetchUsers();
         } catch (error: any) {
-            message.error(error.response?.data?.detail || '创建失败');
+            message.error(error.response?.data?.detail || t('systemUsers.createFailed'));
         }
     };
 
     const handleDelete = async (userId: number) => {
         try {
             await api.delete(`/auth/users/${userId}`);
-            message.success('用户已删除');
+            message.success(t('systemUsers.deleteSuccess'));
             fetchUsers();
         } catch (error: any) {
-            message.error(error.response?.data?.detail || '删除失败');
+            message.error(error.response?.data?.detail || t('systemUsers.deleteFailed'));
         }
     };
 
     const handleResetPassword = async (userId: number) => {
-        const newPwd = prompt('请输入新密码:');
+        const newPwd = prompt(t('systemUsers.resetPasswordPrompt'));
         if (!newPwd) return;
         try {
             await api.post(`/auth/users/${userId}/reset-password`, { new_password: newPwd });
-            message.success('密码已重置');
+            message.success(t('systemUsers.resetSuccess'));
         } catch (error: any) {
-            message.error(error.response?.data?.detail || '重置失败');
+            message.error(error.response?.data?.detail || t('systemUsers.resetFailed'));
         }
     };
 
     const columns = [
         { title: 'ID', dataIndex: 'id', key: 'id', width: 60 },
-        { title: '用户名', dataIndex: 'username', key: 'username' },
-        { title: '邮箱', dataIndex: 'email', key: 'email', render: (v: string | null) => v || '-' },
+        { title: t('common.username'), dataIndex: 'username', key: 'username' },
+        { title: t('common.email'), dataIndex: 'email', key: 'email', render: (v: string | null) => v || '-' },
         {
-            title: '角色', key: 'role', width: 80,
-            render: (_: unknown, r: SystemUser) => r.is_admin ? <Tag color="red">Admin</Tag> : <Tag>User</Tag>,
+            title: t('systemUsers.role'), key: 'role', width: 80,
+            render: (_: unknown, r: SystemUser) => r.is_admin
+                ? <Tag color="red">{t('systemUsers.admin')}</Tag>
+                : <Tag>{t('systemUsers.user')}</Tag>,
         },
         {
-            title: '操作', key: 'actions', width: 180,
+            title: t('common.actions'), key: 'actions', width: 180,
             render: (_: unknown, record: SystemUser) => (
                 <Space>
-                    <Button type="link" size="small" onClick={() => handleResetPassword(record.id)}>重置密码</Button>
+                    <Button type="link" size="small" onClick={() => handleResetPassword(record.id)}>
+                        {t('systemUsers.resetPassword')}
+                    </Button>
                     {!record.is_admin && (
-                        <Popconfirm title="确定删除？" onConfirm={() => handleDelete(record.id)}>
-                            <Button type="link" size="small" danger>删除</Button>
+                        <Popconfirm title={t('systemUsers.deleteConfirm')} onConfirm={() => handleDelete(record.id)}>
+                            <Button type="link" size="small" danger>{t('common.delete')}</Button>
                         </Popconfirm>
                     )}
                 </Space>
@@ -97,25 +99,28 @@ const SystemUsers: React.FC = () => {
     return (
         <div style={{ padding: 0 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
-                <Title level={3} style={{ margin: 0 }}>系统用户管理</Title>
+                <Title level={3} style={{ margin: 0 }}>{t('systemUsers.title')}</Title>
                 <Space>
-                    <Button icon={<ReloadOutlined />} onClick={fetchUsers}>刷新</Button>
-                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>添加用户</Button>
+                    <Button icon={<ReloadOutlined />} onClick={fetchUsers}>{t('common.refresh')}</Button>
+                    <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateVisible(true)}>
+                        {t('systemUsers.addUser')}
+                    </Button>
                 </Space>
             </div>
             <Card>
                 <ResponsiveList columns={columns} dataSource={users} rowKey="id" loading={loading} pagination={false} />
             </Card>
-            <Modal title="添加系统用户" open={createVisible} onOk={() => form.submit()}
-                onCancel={() => { setCreateVisible(false); form.resetFields(); }}>
+            <Modal title={t('systemUsers.addUser')} open={createVisible} onOk={() => form.submit()}
+                onCancel={() => { setCreateVisible(false); form.resetFields(); }}
+                okText={t('common.confirm')} cancelText={t('common.cancel')}>
                 <Form form={form} onFinish={handleCreate} layout="vertical">
-                    <Form.Item name="username" label="用户名" rules={[{ required: true }]}>
+                    <Form.Item name="username" label={t('common.username')} rules={[{ required: true }]}>
                         <Input />
                     </Form.Item>
-                    <Form.Item name="password" label="密码" rules={[{ required: true, min: 6 }]}>
+                    <Form.Item name="password" label={t('systemUsers.password')} rules={[{ required: true, min: 6 }]}>
                         <Input.Password />
                     </Form.Item>
-                    <Form.Item name="email" label="邮箱">
+                    <Form.Item name="email" label={t('common.email')}>
                         <Input />
                     </Form.Item>
                 </Form>

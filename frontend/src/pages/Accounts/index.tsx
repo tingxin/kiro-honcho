@@ -7,6 +7,7 @@ import {
   PlusOutlined, SyncOutlined, CheckCircleOutlined, DeleteOutlined,
   CloudServerOutlined, EyeOutlined, CopyOutlined,
 } from '@ant-design/icons'
+import { useTranslation } from 'react-i18next'
 import { accountService, AWSAccount, CreateAccountRequest } from '../../services/accounts'
 import { useAccountStore } from '../../stores/accountStore'
 import ResponsiveList from '../../components/ResponsiveList'
@@ -23,6 +24,7 @@ const regions = [
 ]
 
 export default function Accounts() {
+  const { t } = useTranslation()
   const [accounts, setAccounts] = useState<AWSAccount[]>([])
   const [loading, setLoading] = useState(false)
   const [modalVisible, setModalVisible] = useState(false)
@@ -128,7 +130,7 @@ export default function Accounts() {
 
   const columns = [
     {
-      title: '名称',
+      title: t('common.name'),
       dataIndex: 'name',
       key: 'name',
       width: 140,
@@ -137,30 +139,30 @@ export default function Accounts() {
       ),
     },
     {
-      title: 'Kiro 登录 URL',
+      title: t('accounts.kiroLoginUrl'),
       dataIndex: 'identity_store_id',
       key: 'kiro_url',
       render: (id: string) => {
-        if (!id) return <Tag>未连接</Tag>;
+        if (!id) return <Tag>{t('accounts.notConnected')}</Tag>;
         const url = `https://${id}.awsapps.com/start`;
         return (
           <Space size={4}>
             <a href={url} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>{url}</a>
             <Button type="text" size="small" icon={<CopyOutlined />}
-              onClick={() => { navigator.clipboard.writeText(url); message.success('已复制'); }} />
+              onClick={() => { navigator.clipboard.writeText(url); message.success(t('common.copied')); }} />
           </Space>
         );
       },
     },
     {
-      title: '状态',
+      title: t('common.status'),
       dataIndex: 'status',
       key: 'status',
       width: 90,
       render: getStatusTag,
     },
     {
-      title: '同步',
+      title: t('accounts.autoSync'),
       dataIndex: 'sync_interval_minutes',
       key: 'sync_interval_minutes',
       width: 80,
@@ -170,16 +172,16 @@ export default function Accounts() {
       },
     },
     {
-      title: '操作',
+      title: t('common.actions'),
       key: 'actions',
       width: 220,
       render: (_: any, record: AWSAccount) => (
         <Space>
           <Button type="link" size="small" icon={<EyeOutlined />}
-            onClick={() => setDetailAccount(record)}>详情</Button>
+            onClick={() => setDetailAccount(record)}>{t('common.detail')}</Button>
           <Button type="link" size="small"
             onClick={() => handleVerify(record.id)}
-            loading={verifying === record.id}>Verify</Button>
+            loading={verifying === record.id}>{t('accounts.verify')}</Button>
           {record.status === 'active' && (
             <Button type="link" size="small"
               onClick={() => handleSync(record.id)}
@@ -208,37 +210,37 @@ export default function Accounts() {
       </Card>
 
       {/* 详情弹窗（含编辑） */}
-      <Modal title="账号详情" open={!!detailAccount} onCancel={() => setDetailAccount(null)}
+      <Modal title={t('accounts.detail')} open={!!detailAccount} onCancel={() => setDetailAccount(null)}
         footer={
           <Space>
-            <Button onClick={() => setDetailAccount(null)}>关闭</Button>
+            <Button onClick={() => setDetailAccount(null)}>{t('common.close')}</Button>
             <Button type="primary" onClick={async () => {
               if (!detailAccount) return;
               const desc = (document.getElementById('edit-desc') as HTMLInputElement)?.value;
               const isDefault = (document.getElementById('edit-default') as HTMLInputElement)?.checked;
               try {
                 await accountService.update(detailAccount.id, { description: desc ?? undefined, is_default: isDefault });
-                message.success('已保存');
+                message.success(t('common.success'));
                 loadAccounts();
                 setDetailAccount(null);
-              } catch { message.error('保存失败'); }
-            }}>保存</Button>
+              } catch { message.error(t('accounts.saveFailed')); }
+            }}>{t('common.save')}</Button>
           </Space>
         } width={640}>
         {detailAccount && (
           <Descriptions bordered column={1} size="small">
-            <Descriptions.Item label="名称">{detailAccount.name}</Descriptions.Item>
-            <Descriptions.Item label="描述">
-              <Input id="edit-desc" defaultValue={detailAccount.description || ''} placeholder="输入描述" />
+            <Descriptions.Item label={t('common.name')}>{detailAccount.name}</Descriptions.Item>
+            <Descriptions.Item label={t('common.description')}>
+              <Input id="edit-desc" defaultValue={detailAccount.description || ''} placeholder={t('common.description')} />
             </Descriptions.Item>
-            <Descriptions.Item label="默认账号">
-              <input id="edit-default" type="checkbox" defaultChecked={detailAccount.is_default} /> 设为默认
+            <Descriptions.Item label={t('accounts.isDefault')}>
+              <input id="edit-default" type="checkbox" defaultChecked={detailAccount.is_default} /> {t('accounts.isDefault')}
             </Descriptions.Item>
             <Descriptions.Item label="Access Key ID">{detailAccount.access_key_masked || '******'}</Descriptions.Item>
             <Descriptions.Item label="SSO Region">{detailAccount.sso_region}</Descriptions.Item>
             <Descriptions.Item label="Kiro Region">{detailAccount.kiro_region}</Descriptions.Item>
-            <Descriptions.Item label="状态">{getStatusTag(detailAccount.status)}</Descriptions.Item>
-            <Descriptions.Item label="Kiro 登录 URL">
+            <Descriptions.Item label={t('common.status')}>{getStatusTag(detailAccount.status)}</Descriptions.Item>
+            <Descriptions.Item label={t('accounts.kiroLoginUrl')}>
               {detailAccount.identity_store_id
                 ? (() => {
                   const url = `https://${detailAccount.identity_store_id}.awsapps.com/start`;
@@ -246,20 +248,22 @@ export default function Accounts() {
                     <Space>
                       <a href={url} target="_blank" rel="noreferrer">{url}</a>
                       <Button type="text" size="small" icon={<CopyOutlined />}
-                        onClick={() => { navigator.clipboard.writeText(url); message.success('已复制'); }} />
+                        onClick={() => { navigator.clipboard.writeText(url); message.success(t('common.copied')); }} />
                     </Space>
                   );
                 })()
-                : '未连接 Identity Center'}
+                : t('accounts.notConnected')}
             </Descriptions.Item>
-            <Descriptions.Item label="Identity Store ID">{detailAccount.identity_store_id || '-'}</Descriptions.Item>
-            <Descriptions.Item label="自动同步">
-              {detailAccount.sync_interval_minutes ? `每 ${detailAccount.sync_interval_minutes} 分钟` : '关闭'}
+            <Descriptions.Item label={t('accounts.identityStoreId')}>{detailAccount.identity_store_id || '-'}</Descriptions.Item>
+            <Descriptions.Item label={t('accounts.autoSync')}>
+              {detailAccount.sync_interval_minutes
+                ? t('accounts.autoSyncEvery', { min: detailAccount.sync_interval_minutes })
+                : t('accounts.autoSyncDisabled')}
             </Descriptions.Item>
-            <Descriptions.Item label="上次同步">
-              {detailAccount.last_synced ? new Date(detailAccount.last_synced).toLocaleString() : '从未'}
+            <Descriptions.Item label={t('accounts.lastVerified')}>
+              {detailAccount.last_synced ? new Date(detailAccount.last_synced).toLocaleString() : t('common.never')}
             </Descriptions.Item>
-            <Descriptions.Item label="创建时间">
+            <Descriptions.Item label={t('common.createdAt')}>
               {new Date(detailAccount.created_at).toLocaleString()}
             </Descriptions.Item>
           </Descriptions>
@@ -305,7 +309,7 @@ export default function Accounts() {
               <Option value={60}>Every 60 min</Option>
             </Select>
           </Form.Item>
-          <Form.Item name="is_default" label="设为默认账号" valuePropName="checked" style={{ marginTop: 8 }}>
+          <Form.Item name="is_default" label={t('accounts.isDefault')} valuePropName="checked" style={{ marginTop: 8 }}>
             <Switch />
           </Form.Item>
           <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
