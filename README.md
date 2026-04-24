@@ -1,8 +1,39 @@
 # Kiro Honcho
 
+[中文](./README.md) | [English](./README.en.md) | [Deutsch](./README.de.md)
+
 **多 AWS 账号 Kiro/Q Developer 订阅管理平台**
 
 一站式管理多个 AWS 账号下的 Identity Center 用户和 Kiro 订阅，简化用户创建、订阅分配、套餐变更等日常运维操作。
+
+---
+
+## 为什么要做这个项目
+
+如果你在企业中使用 AWS Identity Center 管理用户，并为团队成员分配 Kiro（Amazon Q Developer）订阅，你一定遇到过这些痛点：
+
+**手动操作繁琐**
+- 每次新增成员，需要先在 Identity Center 创建用户，等待邮件激活，再手动进入 Kiro 控制台分配订阅——三个步骤，三个不同的界面
+- 批量添加 10 个用户？重复 10 遍
+
+**没有统一视图**
+- Identity Center 只管用户，Kiro 控制台只管订阅，两边数据割裂
+- 想知道"哪些用户还没激活邮箱"、"哪些订阅是 Pending 状态"，需要来回切换界面对比
+
+**多账号管理混乱**
+- 公司有多个 AWS 账号（如生产、测试、合作伙伴），每个账号都有独立的 Identity Center 和 Kiro 订阅
+- AWS 控制台没有跨账号统一视图
+
+**AWS 内部 API 不透明**
+- Kiro 订阅管理使用的是未公开的内部 API（SigV4 签名），没有官方 SDK 支持
+- 权限配置复杂，`AmazonQFullAccess` 托管策略不包含所有必要权限
+
+**Kiro Honcho 解决了这些问题：**
+- 一个界面完成：创建用户 → 发送激活邮件 → 分配订阅，全程自动化
+- 统一展示用户订阅生命周期状态（邮箱未激活 / Pending / Active）
+- 支持多 AWS 账号，账号间一键切换
+- CSV 批量导入，实时进度显示
+- 封装了所有内部 API 调用，开箱即用
 
 ---
 

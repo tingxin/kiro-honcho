@@ -129,7 +129,7 @@ async def _process_batch_stream(
                 # Step 3: 发送邮件
                 if send_password_reset:
                     ic_client.send_password_reset_email(user_id)
-                    ic_client.send_email_verification(user_id, account.identity_store_id)
+                    # 密码重置邮件已包含邮箱激活，无需单独发送验证邮件
                     yield _event({
                         "type": "progress", "current": progress, "total": total,
                         "email": item.email, "step": "email_sent",

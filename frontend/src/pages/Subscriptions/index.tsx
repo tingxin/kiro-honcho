@@ -269,9 +269,6 @@ const SubscriptionManagement: React.FC = () => {
             {status === 'unsubscribed' && (
               <Button type="link" size="small" onClick={() => handleSubscribe(record)}>{t('subscriptions.actions.subscribe')}</Button>
             )}
-            {status === 'email_unverified' && (
-              <Button type="link" size="small" onClick={() => handleResendEmail(record.id)}>{t('subscriptions.actions.resendEmail')}</Button>
-            )}
             {(status === 'pending' || status === 'active') && (
               <>
                 <Button type="link" size="small" onClick={() => {

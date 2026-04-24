@@ -260,7 +260,7 @@ async def create_user(
                 # 发送邮件
                 if _send_reset:
                     ic_client.send_password_reset_email(_user_id)
-                    ic_client.send_email_verification(_user_id, _identity_store_id)
+                    # 密码重置邮件已包含邮箱激活，无需单独发送验证邮件
                 
                 # 分配订阅
                 if _auto_sub:
