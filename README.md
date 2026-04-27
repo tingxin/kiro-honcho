@@ -90,7 +90,7 @@ sudo docker compose -f docker-compose.deploy.yml pull
 sudo docker compose -f docker-compose.deploy.yml up -d
 ```
 
-访问 `http://your-server`，默认账号 `admin` / `admin123`（首次登录会强制设置 MFA）。
+访问 `http://your-server:5025`，默认账号 `admin` / `admin123`（首次登录会强制设置 MFA）。
 
 镜像地址：
 - `barryxu119/kiro-honcho-backend:latest`

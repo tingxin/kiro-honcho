@@ -26,8 +26,9 @@
 services:
   backend:
     image: barryxu119/kiro-honcho-backend:latest
-    ports:
-      - "8080:8080"
+    # 不对外暴露端口，仅通过 nginx 反向代理访问
+    expose:
+      - "8080"
     env_file:
       - .env
     # SQLite 模式下需要挂载 data 目录做持久化
@@ -44,7 +45,7 @@ services:
   frontend:
     image: barryxu119/kiro-honcho-frontend:latest
     ports:
-      - "80:80"
+      - "5025:80"
     depends_on:
       backend:
         condition: service_healthy

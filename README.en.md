@@ -75,13 +75,38 @@ If you use AWS Identity Center to manage users and assign Kiro (Amazon Q Develop
 
 ## Quick Start
 
+> 3 steps, 30 seconds to launch. Uses SQLite by default — no external database needed.
+
+```bash
+mkdir kiro-honcho && cd kiro-honcho
+
+# Download deployment files
+curl -O https://raw.githubusercontent.com/barryxu119/kiro-honcho/dev/docker-compose.deploy.yml
+curl -O https://raw.githubusercontent.com/barryxu119/kiro-honcho/dev/.env.example
+cp .env.example .env
+
+# Start
+sudo docker compose -f docker-compose.deploy.yml pull
+sudo docker compose -f docker-compose.deploy.yml up -d
+```
+
+Visit `http://your-server:5025`, default credentials `admin` / `admin123` (MFA setup required on first login).
+
+Docker images:
+- `barryxu119/kiro-honcho-backend:latest`
+- `barryxu119/kiro-honcho-frontend:latest`
+
+---
+
+## Detailed Deployment Guide
+
 ### 1. Prerequisites
 
 | Item | Requirement |
 |------|-------------|
 | Docker | 24+ |
 | Docker Compose | v2+ |
-| MySQL | 8.x (RDS or self-hosted) |
+| Database | SQLite (default, no setup needed) or MySQL 8.x |
 | AWS Account | IAM Identity Center enabled, Kiro/Q Developer subscription active, permissions configured as below |
 
 ### 2. AWS IAM Permission Setup
@@ -111,30 +136,29 @@ If you use AWS Identity Center to manage users and assign Kiro (Amazon Q Develop
 
 > `AmazonQFullAccess` does NOT include internal API permissions (`q:CreateAssignment`, `q:DeleteAssignment`, `q:UpdateAssignment`, `user-subscriptions:ListUserSubscriptions`). These must be granted via inline policy.
 
-### 3. Deploy
+### 3. Deployment Options
+
+#### Option 1: Docker Hub Images (Recommended)
+
+This is the Quick Start method above. To customize, edit `.env` and restart:
 
 ```bash
-# Clone the repository
-git clone <repo-url>
-cd kiro-honcho
-
-# Configure environment variables
-cp .env.example .env
-# Edit .env with your database, JWT secret, and other settings
-
-# Start services
-sudo docker compose up -d --build
-
-# Initialize database (first deployment only)
-sudo docker compose exec backend python scripts/init_db.py
+vi .env
+sudo docker compose -f docker-compose.deploy.yml up -d
 ```
 
-### 4. Access
+#### Option 2: Build from Source
 
-- Frontend: `http://your-server` (port 80)
-- Default credentials: `admin` / `admin123` (MFA setup required on first login)
+```bash
+git clone <repo-url>
+cd kiro-honcho
+cp .env.example .env
+# Edit .env
 
-### 5. Usage Flow
+sudo docker compose up -d --build
+```
+
+### 4. Usage Flow
 
 1. **Add AWS Account** — enter AK/SK, SSO Region, Kiro Region
 2. **Verify Account** — click Verify to check permissions and Identity Center connection
@@ -146,26 +170,42 @@ sudo docker compose exec backend python scripts/init_db.py
 
 ## Environment Variables
 
-```env
-# Database (MySQL)
-DATABASE_URL=mysql+aiomysql://user:password@host:3306/kiro_honcho
-DB_SSL_CA=global-bundle.pem
+All configuration is managed via a single `.env` file in the root directory:
 
-# JWT Authentication
+```env
+# ===== Database =====
+# DB_TYPE: sqlite or mysql
+DB_TYPE=sqlite
+
+# SQLite (default, data stored in ./data, auto-mounted by Docker)
+# SQLITE_PATH=/app/data/kiro_honcho.db
+
+# MySQL (uncomment and fill in)
+# MYSQL_HOST=your-mysql-host
+# MYSQL_PORT=3306
+# MYSQL_USER=root
+# MYSQL_PASSWORD=your-password
+# MYSQL_DATABASE=kiro_honcho
+# DB_SSL_CA=global-bundle.pem
+
+# ===== JWT Authentication =====
 JWT_SECRET_KEY=your-secret-key-min-32-chars
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# Encryption key for AWS credentials
+# ===== Encryption key for AWS credentials =====
 # Generate: python -c "import secrets, base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
 APP_ENCRYPTION_KEY=your-base64-encoded-32-byte-key
 
-# Default admin
+# ===== Default admin =====
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=admin123
 
-# Auto subscription check interval (minutes)
+# ===== Other =====
+CORS_ORIGINS=http://your-domain.com
 AUTO_SUBSCRIBE_CHECK_INTERVAL=5
+DEFAULT_SSO_REGION=us-east-2
+DEFAULT_KIRO_REGION=us-east-1
 ```
 
 ---
@@ -173,8 +213,14 @@ AUTO_SUBSCRIBE_CHECK_INTERVAL=5
 ## Update Deployment
 
 ```bash
-# After pulling latest code
-sudo docker compose build --no-cache && sudo docker compose up -d
+# Docker Hub image method
+sudo docker compose -f docker-compose.deploy.yml pull
+sudo docker compose -f docker-compose.deploy.yml up -d
+
+# Source build method
+git pull
+sudo docker compose build --no-cache
+sudo docker compose up -d
 ```
 
 ---

@@ -3,8 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.backend
-    ports:
-      - "8080:8080"
+    # 不对外暴露端口，仅通过 nginx 反向代理访问
+    expose:
+      - "8080"
     env_file:
       - .env
     environment:
@@ -21,7 +22,7 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     ports:
-      - "80:80"
+      - "5025:80"
     depends_on:
       backend:
         condition: service_healthy

@@ -75,13 +75,38 @@ Wenn Sie AWS Identity Center zur Benutzerverwaltung nutzen und Ihrem Team Kiro (
 
 ## Schnellstart
 
+> 3 Schritte, 30 Sekunden zum Starten. Verwendet standardmäßig SQLite — keine externe Datenbank erforderlich.
+
+```bash
+mkdir kiro-honcho && cd kiro-honcho
+
+# Deployment-Dateien herunterladen
+curl -O https://raw.githubusercontent.com/barryxu119/kiro-honcho/dev/docker-compose.deploy.yml
+curl -O https://raw.githubusercontent.com/barryxu119/kiro-honcho/dev/.env.example
+cp .env.example .env
+
+# Starten
+sudo docker compose -f docker-compose.deploy.yml pull
+sudo docker compose -f docker-compose.deploy.yml up -d
+```
+
+Zugriff unter `http://ihr-server:5025`, Standardzugangsdaten `admin` / `admin123` (MFA-Einrichtung beim ersten Login erforderlich).
+
+Docker-Images:
+- `barryxu119/kiro-honcho-backend:latest`
+- `barryxu119/kiro-honcho-frontend:latest`
+
+---
+
+## Detaillierte Deployment-Anleitung
+
 ### 1. Voraussetzungen
 
 | Element | Anforderung |
 |---------|-------------|
 | Docker | 24+ |
 | Docker Compose | v2+ |
-| MySQL | 8.x (RDS oder selbst gehostet) |
+| Datenbank | SQLite (Standard, keine Einrichtung nötig) oder MySQL 8.x |
 | AWS-Konto | IAM Identity Center aktiviert, Kiro/Q Developer-Abonnement aktiv, Berechtigungen wie unten konfiguriert |
 
 ### 2. AWS IAM-Berechtigungskonfiguration
@@ -111,30 +136,29 @@ Wenn Sie AWS Identity Center zur Benutzerverwaltung nutzen und Ihrem Team Kiro (
 
 > `AmazonQFullAccess` enthält NICHT die internen API-Berechtigungen (`q:CreateAssignment`, `q:DeleteAssignment`, `q:UpdateAssignment`, `user-subscriptions:ListUserSubscriptions`). Diese müssen über eine Inline-Richtlinie gewährt werden.
 
-### 3. Deployment
+### 3. Deployment-Optionen
+
+#### Option 1: Docker Hub Images (Empfohlen)
+
+Dies ist die Schnellstart-Methode oben. Zum Anpassen `.env` bearbeiten und neu starten:
 
 ```bash
-# Repository klonen
-git clone <repo-url>
-cd kiro-honcho
-
-# Umgebungsvariablen konfigurieren
-cp .env.example .env
-# .env mit Datenbank-, JWT-Schlüssel- und anderen Einstellungen bearbeiten
-
-# Dienste starten
-sudo docker compose up -d --build
-
-# Datenbank initialisieren (nur beim ersten Deployment)
-sudo docker compose exec backend python scripts/init_db.py
+vi .env
+sudo docker compose -f docker-compose.deploy.yml up -d
 ```
 
-### 4. Zugriff
+#### Option 2: Aus Quellcode bauen
 
-- Frontend: `http://ihr-server` (Port 80)
-- Standardzugangsdaten: `admin` / `admin123` (MFA-Einrichtung beim ersten Login erforderlich)
+```bash
+git clone <repo-url>
+cd kiro-honcho
+cp .env.example .env
+# .env bearbeiten
 
-### 5. Verwendungsablauf
+sudo docker compose up -d --build
+```
+
+### 4. Verwendungsablauf
 
 1. **AWS-Konto hinzufügen** — AK/SK, SSO-Region, Kiro-Region eingeben
 2. **Konto verifizieren** — Verify klicken, um Berechtigungen und Identity Center-Verbindung zu prüfen
@@ -146,26 +170,42 @@ sudo docker compose exec backend python scripts/init_db.py
 
 ## Umgebungsvariablen
 
-```env
-# Datenbank (MySQL)
-DATABASE_URL=mysql+aiomysql://benutzer:passwort@host:3306/kiro_honcho
-DB_SSL_CA=global-bundle.pem
+Alle Konfiguration wird über eine einzige `.env`-Datei im Stammverzeichnis verwaltet:
 
-# JWT-Authentifizierung
+```env
+# ===== Datenbank =====
+# DB_TYPE: sqlite oder mysql
+DB_TYPE=sqlite
+
+# SQLite (Standard, Daten in ./data, automatisch von Docker gemountet)
+# SQLITE_PATH=/app/data/kiro_honcho.db
+
+# MySQL (auskommentieren und ausfüllen)
+# MYSQL_HOST=ihr-mysql-host
+# MYSQL_PORT=3306
+# MYSQL_USER=root
+# MYSQL_PASSWORD=ihr-passwort
+# MYSQL_DATABASE=kiro_honcho
+# DB_SSL_CA=global-bundle.pem
+
+# ===== JWT-Authentifizierung =====
 JWT_SECRET_KEY=ihr-geheimer-schluessel-min-32-zeichen
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# Verschlüsselungsschlüssel für AWS-Anmeldedaten
+# ===== Verschlüsselungsschlüssel für AWS-Anmeldedaten =====
 # Generieren: python -c "import secrets, base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
 APP_ENCRYPTION_KEY=ihr-base64-kodierter-32-byte-schluessel
 
-# Standard-Administrator
+# ===== Standard-Administrator =====
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=admin123
 
-# Intervall für automatische Abonnementprüfung (Minuten)
+# ===== Sonstiges =====
+CORS_ORIGINS=http://ihre-domain.com
 AUTO_SUBSCRIBE_CHECK_INTERVAL=5
+DEFAULT_SSO_REGION=us-east-2
+DEFAULT_KIRO_REGION=us-east-1
 ```
 
 ---
@@ -173,8 +213,14 @@ AUTO_SUBSCRIBE_CHECK_INTERVAL=5
 ## Deployment aktualisieren
 
 ```bash
-# Nach dem Abrufen des neuesten Codes
-sudo docker compose build --no-cache && sudo docker compose up -d
+# Docker Hub Image-Methode
+sudo docker compose -f docker-compose.deploy.yml pull
+sudo docker compose -f docker-compose.deploy.yml up -d
+
+# Quellcode-Build-Methode
+git pull
+sudo docker compose build --no-cache
+sudo docker compose up -d
 ```
 
 ---
