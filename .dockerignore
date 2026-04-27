@@ -1,0 +1,13 @@
+**/.git
+**/node_modules
+**/venv
+**/__pycache__
+**/*.pyc
+**/dist
+**/.env.local
+*.db
+.gitignore
+README.md
+ARCHITECTURE.md
+TASK_LOG.md
+LICENSE

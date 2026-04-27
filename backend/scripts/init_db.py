@@ -21,7 +21,12 @@ from urllib.parse import urlparse
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from dotenv import load_dotenv
-load_dotenv()
+
+# 加载项目根目录的 .env（唯一配置文件）
+_root_env = Path(__file__).resolve().parent.parent.parent / ".env"
+_local_env = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(_root_env)
+load_dotenv(_local_env, override=True)  # 本地 .env 如果存在则覆盖
 
 
 def get_db_config():

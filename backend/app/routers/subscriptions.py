@@ -164,7 +164,7 @@ async def create_subscription(
         
         # 记录创建订阅日志
         log_service = OperationLogService(session)
-        operator = current_user.get("email") if current_user else None
+        operator = current_user.get("username") if current_user else None
         await log_service.log_operation(
             account_id=account_id,
             operation="create_subscription",
@@ -247,7 +247,7 @@ async def update_subscription(
         
         # 记录更改计划日志
         log_service = OperationLogService(session)
-        operator = current_user.get("email") if current_user else None
+        operator = current_user.get("username") if current_user else None
         await log_service.log_operation(
             account_id=account_id,
             operation="change_plan",
@@ -334,7 +334,7 @@ async def delete_subscription(
         # 记录删除订阅日志
         principal_id = subscription.principal_id
         log_service = OperationLogService(session)
-        operator = current_user.get("email") if current_user else None
+        operator = current_user.get("username") if current_user else None
         await log_service.log_operation(
             account_id=account_id,
             operation="delete_subscription",

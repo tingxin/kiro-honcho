@@ -275,7 +275,7 @@ export default function Accounts() {
         onCancel={() => { setModalVisible(false); form.resetFields() }}
         footer={null} width={600}>
         <Form form={form} layout="vertical" onFinish={handleCreate}
-          initialValues={{ sso_region: 'us-east-2', kiro_region: 'us-east-1', sync_interval_minutes: 0, is_default: false }}>
+          initialValues={{ sso_region: 'us-east-2', kiro_region: 'us-east-1', sync_interval_minutes: 5, is_default: false }}>
           <Form.Item name="name" label="Account Name"
             rules={[{ required: true, message: 'Please enter account name' }]}>
             <Input placeholder="My AWS Account" />
@@ -303,6 +303,7 @@ export default function Accounts() {
             extra="0 = disabled. Recommended: 30 or 60 minutes.">
             <Select>
               <Option value={0}>Disabled</Option>
+              <Option value={3}>Every 3 min</Option>
               <Option value={5}>Every 5 min</Option>
               <Option value={15}>Every 15 min</Option>
               <Option value={30}>Every 30 min</Option>

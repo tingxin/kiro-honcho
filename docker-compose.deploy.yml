@@ -1,0 +1,51 @@
+# Kiro Honcho 部署配置
+# 使用方式：docker compose -f docker-compose.deploy.yml up -d
+#
+# 部署前准备：
+# 1. 复制 .env.example 为 .env 并填写配置
+# 2. 确保服务器可以访问 Docker Hub
+#
+# ============================================================
+# 数据库选择：
+#
+# 【SQLite 模式】（默认）
+#   .env 中设置：DB_TYPE=sqlite
+#   数据持久化到 ./data 目录
+#
+# 【MySQL 模式】
+#   .env 中设置：
+#     DB_TYPE=mysql
+#     MYSQL_HOST=your-mysql-host
+#     MYSQL_PORT=3306
+#     MYSQL_USER=your-user
+#     MYSQL_PASSWORD=your-password
+#     MYSQL_DATABASE=kiro_honcho
+#   然后注释掉 backend 的 volumes 部分
+# ============================================================
+
+services:
+  backend:
+    image: barryxu119/kiro-honcho-backend:latest
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    # SQLite 模式下需要挂载 data 目录做持久化
+    # 如果使用 MySQL，可以删除或注释掉 volumes
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    image: barryxu119/kiro-honcho-frontend:latest
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

@@ -7,12 +7,14 @@ from app.config import get_settings
 
 settings = get_settings()
 
+_database_url = settings.get_database_url()
+
 
 def _get_connect_args() -> dict:
     """构建数据库连接参数（MySQL SSL 等）."""
     connect_args = {}
     
-    if "mysql" in settings.DATABASE_URL:
+    if settings.is_mysql:
         # MySQL SSL 配置
         ssl_ca = getattr(settings, "DB_SSL_CA", None)
         if ssl_ca:
@@ -24,14 +26,31 @@ def _get_connect_args() -> dict:
     return connect_args
 
 
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=settings.DEBUG,
-    future=True,
-    connect_args=_get_connect_args(),
-    pool_recycle=3600,
-    pool_pre_ping=True,
-)
+def _get_engine_kwargs() -> dict:
+    """根据数据库类型构建引擎参数."""
+    kwargs = {
+        "echo": settings.DEBUG,
+        "future": True,
+        "connect_args": _get_connect_args(),
+    }
+    
+    if settings.is_mysql:
+        # MySQL 连接池配置
+        kwargs["pool_recycle"] = 3600
+        kwargs["pool_pre_ping"] = True
+        kwargs["pool_size"] = 10
+        kwargs["max_overflow"] = 20
+    
+    return kwargs
+
+
+# 如果是 SQLite，确保 data 目录存在
+if settings.is_sqlite:
+    sqlite_path = settings.SQLITE_PATH
+    Path(sqlite_path).parent.mkdir(parents=True, exist_ok=True)
+
+
+engine = create_async_engine(_database_url, **_get_engine_kwargs())
 
 async_session_maker = async_sessionmaker(
     engine,

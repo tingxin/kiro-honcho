@@ -84,6 +84,7 @@ async def create_account(
         sso_region=request.sso_region,
         kiro_region=request.kiro_region,
         description=request.description,
+        operator=current_user.get("username"),
         sync_interval_minutes=request.sync_interval_minutes or 0,
         is_default=request.is_default if hasattr(request, 'is_default') else False,
     )
@@ -167,7 +168,7 @@ async def verify_account(
 ):
     """Verify AWS account credentials and permissions."""
     service = AccountService(session)
-    result = await service.verify_account(account_id)
+    result = await service.verify_account(account_id, operator=current_user.get("username"))
     
     return AccountVerificationResponse(
         account_id=result["account_id"],
@@ -187,7 +188,7 @@ async def sync_account(
 ):
     """Sync users and subscriptions from AWS account."""
     service = AccountService(session)
-    result = await service.sync_account_data(account_id)
+    result = await service.sync_account_data(account_id, operator=current_user.get("username"))
     
     if not result.get("success"):
         raise HTTPException(

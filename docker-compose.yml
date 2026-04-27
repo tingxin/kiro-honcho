@@ -6,7 +6,7 @@ services:
     ports:
       - "8080:8080"
     env_file:
-      - backend/.env
+      - .env
     environment:
       - DB_SSL_CA=global-bundle.pem
     restart: unless-stopped

@@ -75,13 +75,38 @@
 
 ## 快速开始
 
+> 只需 3 步，30 秒启动。默认使用 SQLite，无需额外数据库。
+
+```bash
+mkdir kiro-honcho && cd kiro-honcho
+
+# 下载部署文件
+curl -O https://raw.githubusercontent.com/barryxu119/kiro-honcho/dev/docker-compose.deploy.yml
+curl -O https://raw.githubusercontent.com/barryxu119/kiro-honcho/dev/.env.example
+cp .env.example .env
+
+# 启动
+sudo docker compose -f docker-compose.deploy.yml pull
+sudo docker compose -f docker-compose.deploy.yml up -d
+```
+
+访问 `http://your-server`，默认账号 `admin` / `admin123`（首次登录会强制设置 MFA）。
+
+镜像地址：
+- `barryxu119/kiro-honcho-backend:latest`
+- `barryxu119/kiro-honcho-frontend:latest`
+
+---
+
+## 详细部署指南
+
 ### 1. 前置条件
 
 | 项目 | 要求 |
 |------|------|
 | Docker | 24+ |
 | Docker Compose | v2+ |
-| MySQL | 8.x（RDS 或自建） |
+| 数据库 | SQLite（默认，无需额外安装）或 MySQL 8.x |
 | AWS 账号 | 已开通IAM Identity Center, Kiro/Q Developer 订阅服务, 如下配置好相关权限 |
 
 
@@ -112,30 +137,32 @@
 
 > `AmazonQFullAccess` 不包含内部 API 权限（`q:CreateAssignment`、`q:DeleteAssignment`、`q:UpdateAssignment`、`user-subscriptions:ListUserSubscriptions`），必须通过 inline policy 单独授权。
 
-### 3. 部署
+### 3. 部署方式
+
+#### 方式一：Docker Hub 镜像部署（推荐）
+
+即上面"快速开始"的方式。如需自定义配置，编辑 `.env` 文件后重启：
 
 ```bash
-# 克隆项目
-git clone <repo-url>
-cd kiro-honcho
+# 编辑配置
+vi .env
 
-# 配置环境变量
-cp backend/.env.example backend/.env
-# 编辑 backend/.env，填写 MySQL 连接信息和 JWT 密钥
-
-# 启动服务
-sudo docker compose up -d --build
-
-# 初始化数据库（首次部署）
-sudo docker compose exec backend python scripts/init_db.py
+# 重启生效
+sudo docker compose -f docker-compose.deploy.yml up -d
 ```
 
-### 4. 访问
+#### 方式二：源码构建部署
 
-- 前端界面：`http://your-server`（端口 80）
-- 默认账号：`admin` / `admin123`（首次登录会强制设置 MFA）
+```bash
+git clone <repo-url>
+cd kiro-honcho
+cp .env.example .env
+# 编辑 .env
 
-### 5. 使用流程
+sudo docker compose up -d --build
+```
+
+### 4. 使用流程
 
 1. **添加 AWS 账号** — 填写 AK/SK、SSO Region、Kiro Region
 2. **验证账号** — 点击 Verify，自动检测权限和 Identity Center 连接
@@ -147,26 +174,42 @@ sudo docker compose exec backend python scripts/init_db.py
 
 ## 环境变量配置
 
-```env
-# 数据库（MySQL）
-DATABASE_URL=mysql+aiomysql://user:password@host:3306/kiro_honcho
-DB_SSL_CA=global-bundle.pem
+项目使用根目录下唯一的 `.env` 文件管理所有配置：
 
-# JWT 认证
+```env
+# ===== 数据库配置 =====
+# DB_TYPE: sqlite 或 mysql
+DB_TYPE=sqlite
+
+# SQLite（默认，数据存储在 ./data 目录，Docker 自动挂载持久化）
+# SQLITE_PATH=/app/data/kiro_honcho.db
+
+# MySQL（取消注释并填写）
+# MYSQL_HOST=your-mysql-host
+# MYSQL_PORT=3306
+# MYSQL_USER=root
+# MYSQL_PASSWORD=your-password
+# MYSQL_DATABASE=kiro_honcho
+# DB_SSL_CA=global-bundle.pem
+
+# ===== JWT 认证 =====
 JWT_SECRET_KEY=your-secret-key-min-32-chars
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# 加密密钥（用于加密存储 AWS 凭证）
+# ===== 加密密钥（用于加密存储 AWS 凭证）=====
 # 生成方式: python -c "import secrets, base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
 APP_ENCRYPTION_KEY=your-base64-encoded-32-byte-key
 
-# 默认管理员
+# ===== 默认管理员 =====
 DEFAULT_ADMIN_USERNAME=admin
 DEFAULT_ADMIN_PASSWORD=admin123
 
-# 自动订阅检查间隔（分钟）
+# ===== 其他 =====
+CORS_ORIGINS=http://your-domain.com
 AUTO_SUBSCRIBE_CHECK_INTERVAL=5
+DEFAULT_SSO_REGION=us-east-2
+DEFAULT_KIRO_REGION=us-east-1
 ```
 
 ---
@@ -174,8 +217,14 @@ AUTO_SUBSCRIBE_CHECK_INTERVAL=5
 ## 更新部署
 
 ```bash
-# 拉取最新代码后
-sudo docker compose build --no-cache && sudo docker compose up -d
+# Docker Hub 镜像方式
+sudo docker compose -f docker-compose.deploy.yml pull
+sudo docker compose -f docker-compose.deploy.yml up -d
+
+# 源码构建方式
+git pull
+sudo docker compose build --no-cache
+sudo docker compose up -d
 ```
 
 ---

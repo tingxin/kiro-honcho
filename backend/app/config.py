@@ -13,17 +13,33 @@ class Settings(BaseSettings):
     """Application settings."""
     
     model_config = SettingsConfigDict(
-        env_file=".env",
+        # 优先读取工作目录下的 .env，再读项目根目录的 .env
+        # Docker 中 WORKDIR=/app，env_file 通过 docker-compose 注入
+        # 本地开发时从项目根目录读取
+        env_file=(".env", str(BASE_DIR.parent / ".env")),
         env_file_encoding="utf-8",
-        extra="ignore"  # Ignore extra fields in .env
+        extra="ignore",
     )
     
     APP_NAME: str = "Kiro Honcho"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = False
     
-    # Database
-    DATABASE_URL: str = f"sqlite+aiosqlite:///{BASE_DIR}/data/kiro_honcho.db"
+    # Database type: "sqlite" or "mysql"
+    DB_TYPE: str = "sqlite"
+    
+    # SQLite settings (used when DB_TYPE=sqlite)
+    SQLITE_PATH: str = str(BASE_DIR / "data" / "kiro_honcho.db")
+    
+    # MySQL settings (used when DB_TYPE=mysql)
+    MYSQL_HOST: str = "localhost"
+    MYSQL_PORT: int = 3306
+    MYSQL_USER: str = "root"
+    MYSQL_PASSWORD: str = ""
+    MYSQL_DATABASE: str = "kiro_honcho"
+    
+    # Direct DATABASE_URL override (takes precedence over DB_TYPE if set)
+    DATABASE_URL: Optional[str] = None
     DB_SSL_CA: Optional[str] = None
     
     # JWT Settings
@@ -54,6 +70,32 @@ class Settings(BaseSettings):
     DEFAULT_SSO_REGION: str = "us-east-1"
     DEFAULT_KIRO_REGION: str = "us-east-1"
     
+    def get_database_url(self) -> str:
+        """Build the database URL based on DB_TYPE or direct DATABASE_URL override."""
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
+        
+        if self.DB_TYPE.lower() == "mysql":
+            return (
+                f"mysql+aiomysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}"
+                f"@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DATABASE}"
+            )
+        
+        # Default: sqlite
+        return f"sqlite+aiosqlite:///{self.SQLITE_PATH}"
+    
+    @property
+    def is_sqlite(self) -> bool:
+        """Check if using SQLite."""
+        url = self.get_database_url()
+        return "sqlite" in url
+    
+    @property
+    def is_mysql(self) -> bool:
+        """Check if using MySQL."""
+        url = self.get_database_url()
+        return "mysql" in url
+    
     def get_secret_key(self) -> str:
         """Get the effective secret key."""
         return self.JWT_SECRET_KEY or self.SECRET_KEY
@@ -74,7 +116,8 @@ def get_settings() -> Settings:
 
 
 # Legacy exports for backward compatibility
-DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{BASE_DIR}/data/kiro_honcho.db")
+_settings = get_settings()
+DATABASE_URL = _settings.get_database_url()
 SECRET_KEY = os.getenv("SECRET_KEY", os.getenv("JWT_SECRET_KEY", "your-super-secret-key-change-in-production-min-32-chars"))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30

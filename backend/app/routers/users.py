@@ -453,7 +453,7 @@ async def delete_user(
         # 记录删除用户日志
         user_email = ic_user.email
         log_service = OperationLogService(session)
-        operator = current_user.get("email") if current_user else None
+        operator = current_user.get("username") if current_user else None
         await log_service.log_operation(
             account_id=account_id,
             operation="delete_user",

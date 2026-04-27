@@ -119,8 +119,8 @@ git clone <repo-url>
 cd kiro-honcho
 
 # Configure environment variables
-cp backend/.env.example backend/.env
-# Edit backend/.env with your MySQL connection and JWT secret
+cp .env.example .env
+# Edit .env with your database, JWT secret, and other settings
 
 # Start services
 sudo docker compose up -d --build

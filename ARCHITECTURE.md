@@ -136,8 +136,7 @@ kiro-honcho/
 │   │   ├── test_users.py
 │   │   └── test_subscriptions.py
 │   ├── requirements.txt
-│   ├── alembic.ini
-│   └── .env.example
+│   └── alembic.ini
 │
 ├── frontend/                         # 前端应用
 │   ├── src/
