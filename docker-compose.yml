@@ -10,6 +10,8 @@ services:
       - .env
     environment:
       - DB_SSL_CA=global-bundle.pem
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]

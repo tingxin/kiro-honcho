@@ -25,16 +25,19 @@ class AccountService:
             user_count = await self.session.scalar(
                 select(func.count()).select_from(ICUser).where(ICUser.aws_account_id == account_id)
             )
-            # 有订阅的用户数
+            # 有活跃订阅的用户数（必须关联到 ICUser，且状态为 ACTIVE 或 PENDING）
             subscribed_user_count = await self.session.scalar(
                 select(func.count()).select_from(KiroSubscription).where(
-                    KiroSubscription.aws_account_id == account_id
+                    KiroSubscription.aws_account_id == account_id,
+                    KiroSubscription.user_id.isnot(None),
+                    func.upper(KiroSubscription.status).in_(["ACTIVE", "PENDING"])
                 )
             )
-            # 活跃订阅数（状态为 ACTIVE，大写）
+            # 活跃订阅数（关联到 ICUser，状态为 ACTIVE）
             active_sub_count = await self.session.scalar(
                 select(func.count()).select_from(KiroSubscription).where(
                     KiroSubscription.aws_account_id == account_id,
+                    KiroSubscription.user_id.isnot(None),
                     func.upper(KiroSubscription.status) == "ACTIVE"
                 )
             )
@@ -43,10 +46,14 @@ class AccountService:
                 select(func.count()).select_from(ICUser)
             )
             subscribed_user_count = await self.session.scalar(
-                select(func.count()).select_from(KiroSubscription)
+                select(func.count()).select_from(KiroSubscription).where(
+                    KiroSubscription.user_id.isnot(None),
+                    func.upper(KiroSubscription.status).in_(["ACTIVE", "PENDING"])
+                )
             )
             active_sub_count = await self.session.scalar(
                 select(func.count()).select_from(KiroSubscription).where(
+                    KiroSubscription.user_id.isnot(None),
                     func.upper(KiroSubscription.status) == "ACTIVE"
                 )
             )

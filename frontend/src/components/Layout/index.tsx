@@ -257,6 +257,7 @@ const Layout: React.FC = () => {
               {t('mfa.manualKey')}: <code>{mfaData.secret}</code>
             </p>
             <Input
+              autoFocus
               placeholder={t('mfa.enterCode')}
               maxLength={6}
               value={mfaCode}

@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import {
   PlusOutlined, SyncOutlined, CheckCircleOutlined, DeleteOutlined,
-  CloudServerOutlined, EyeOutlined, CopyOutlined,
+  CloudServerOutlined, EyeOutlined, CopyOutlined, ExclamationCircleOutlined,
 } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
 import { accountService, AWSAccount, CreateAccountRequest } from '../../services/accounts'
@@ -18,9 +18,8 @@ const { Option } = Select
 const { TextArea } = Input
 
 const regions = [
-  'us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
-  'eu-west-1', 'eu-west-2', 'eu-central-1',
-  'ap-northeast-1', 'ap-southeast-1', 'ap-southeast-2',
+  { value: 'us-east-1', labelKey: 'accounts.regionVirginia' },
+  { value: 'eu-central-1', labelKey: 'accounts.regionFrankfurt' },
 ]
 
 export default function Accounts() {
@@ -32,6 +31,7 @@ export default function Accounts() {
   const [form] = Form.useForm()
   const [verifying, setVerifying] = useState<number | null>(null)
   const [syncing, setSyncing] = useState<number | null>(null)
+  const [permissionModalVisible, setPermissionModalVisible] = useState(false)
   const { fetchAccounts: refreshStore } = useAccountStore()
 
   useEffect(() => {
@@ -45,7 +45,7 @@ export default function Accounts() {
       setAccounts(response.accounts)
       refreshStore() // 刷新全局 store，让侧边栏菜单更新
     } catch (error) {
-      message.error('Failed to load accounts')
+      message.error(t('accounts.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -54,7 +54,7 @@ export default function Accounts() {
   const handleCreate = async (values: CreateAccountRequest) => {
     try {
       const account = await accountService.create(values)
-      message.success(`Account "${account.name}" created, verifying...`)
+      message.success(t('accounts.createdVerifying', { name: account.name }))
       setModalVisible(false)
       form.resetFields()
       await loadAccounts()
@@ -63,18 +63,18 @@ export default function Accounts() {
       try {
         const verifyResult = await accountService.verify(account.id)
         if (verifyResult.status === 'active') {
-          message.success('Account verified, syncing data...')
+          message.success(t('accounts.verifiedSyncing'))
           const syncResult = await accountService.sync(account.id)
-          message.success(`Synced ${syncResult.synced_users} users, ${syncResult.synced_subscriptions} subscriptions`)
+          message.success(t('accounts.syncSuccess', { users: syncResult.synced_users, subs: syncResult.synced_subscriptions }))
         } else {
-          message.warning(`Verification issues: ${verifyResult.message}`)
+          message.warning(t('accounts.verificationIssues', { msg: verifyResult.message }))
         }
         loadAccounts()
       } catch (e) {
-        message.warning('Auto verify/sync failed, please do it manually')
+        message.warning(t('accounts.autoVerifyFailed'))
       }
     } catch (error: any) {
-      message.error(error.response?.data?.detail || 'Failed to create account')
+      message.error(error.response?.data?.detail || t('accounts.createFailed'))
     }
   }
 
@@ -83,13 +83,13 @@ export default function Accounts() {
     try {
       const result = await accountService.verify(accountId)
       if (result.status === 'active') {
-        message.success('Account verified successfully')
+        message.success(t('accounts.verifySuccess'))
       } else {
-        message.warning(`Verification issues: ${result.message}`)
+        message.warning(t('accounts.verificationIssues', { msg: result.message }))
       }
       loadAccounts()
     } catch (error) {
-      message.error('Verification failed')
+      message.error(t('accounts.verifyFailed'))
     } finally {
       setVerifying(null)
     }
@@ -99,10 +99,10 @@ export default function Accounts() {
     setSyncing(accountId)
     try {
       const result = await accountService.sync(accountId)
-      message.success(`Synced ${result.synced_users} users, ${result.synced_subscriptions} subscriptions`)
+      message.success(t('accounts.syncSuccess', { users: result.synced_users, subs: result.synced_subscriptions }))
       loadAccounts()
     } catch (error) {
-      message.error('Sync failed')
+      message.error(t('accounts.syncFailed'))
     } finally {
       setSyncing(null)
     }
@@ -111,10 +111,10 @@ export default function Accounts() {
   const handleDelete = async (accountId: number) => {
     try {
       await accountService.delete(accountId)
-      message.success('Account deleted')
+      message.success(t('accounts.deleteSuccess'))
       loadAccounts()
     } catch (error) {
-      message.error('Failed to delete account')
+      message.error(t('accounts.deleteFailed'))
     }
   }
 
@@ -185,9 +185,9 @@ export default function Accounts() {
           {record.status === 'active' && (
             <Button type="link" size="small"
               onClick={() => handleSync(record.id)}
-              loading={syncing === record.id}>Sync</Button>
+              loading={syncing === record.id}>{t('common.sync')}</Button>
           )}
-          <Popconfirm title="Delete this account?" onConfirm={() => handleDelete(record.id)}>
+          <Popconfirm title={t('accounts.deleteConfirm')} onConfirm={() => handleDelete(record.id)}>
             <Button type="link" size="small" danger icon={<DeleteOutlined />} />
           </Popconfirm>
         </Space>
@@ -198,9 +198,9 @@ export default function Accounts() {
   return (
     <div className={styles.accounts}>
       <div className={styles.header}>
-        <Title level={2}>AWS Accounts</Title>
+        <Title level={2}>{t('accounts.title')}</Title>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalVisible(true)}>
-          Add Account
+          {t('accounts.add')}
         </Button>
       </div>
 
@@ -236,9 +236,9 @@ export default function Accounts() {
             <Descriptions.Item label={t('accounts.isDefault')}>
               <input id="edit-default" type="checkbox" defaultChecked={detailAccount.is_default} /> {t('accounts.isDefault')}
             </Descriptions.Item>
-            <Descriptions.Item label="Access Key ID">{detailAccount.access_key_masked || '******'}</Descriptions.Item>
-            <Descriptions.Item label="SSO Region">{detailAccount.sso_region}</Descriptions.Item>
-            <Descriptions.Item label="Kiro Region">{detailAccount.kiro_region}</Descriptions.Item>
+            <Descriptions.Item label={t('accounts.accessKeyId')}>{detailAccount.access_key_masked || '******'}</Descriptions.Item>
+            <Descriptions.Item label={t('accounts.ssoRegion')}>{detailAccount.sso_region}</Descriptions.Item>
+            <Descriptions.Item label={t('accounts.kiroRegion')}>{detailAccount.kiro_region}</Descriptions.Item>
             <Descriptions.Item label={t('common.status')}>{getStatusTag(detailAccount.status)}</Descriptions.Item>
             <Descriptions.Item label={t('accounts.kiroLoginUrl')}>
               {detailAccount.identity_store_id
@@ -271,43 +271,45 @@ export default function Accounts() {
       </Modal>
 
       {/* 添加账号弹窗 */}
-      <Modal title="Add AWS Account" open={modalVisible}
+      <Modal title={t('accounts.addTitle')} open={modalVisible}
         onCancel={() => { setModalVisible(false); form.resetFields() }}
         footer={null} width={600}>
         <Form form={form} layout="vertical" onFinish={handleCreate}
-          initialValues={{ sso_region: 'us-east-2', kiro_region: 'us-east-1', sync_interval_minutes: 5, is_default: false }}>
-          <Form.Item name="name" label="Account Name"
-            rules={[{ required: true, message: 'Please enter account name' }]}>
-            <Input placeholder="My AWS Account" />
+          initialValues={{ sso_region: 'us-east-1', kiro_region: 'us-east-1', sync_interval_minutes: 5, is_default: false }}>
+          <Form.Item name="name" label={t('accounts.name')}
+            rules={[{ required: true, message: t('accounts.accountNameRequired') }]}>
+            <Input placeholder={t('accounts.accountNamePlaceholder')} />
           </Form.Item>
-          <Form.Item name="description" label="Description">
-            <TextArea rows={2} placeholder="Optional description" />
+          <Form.Item name="description" label={t('common.description')}>
+            <TextArea rows={2} placeholder={t('accounts.descriptionPlaceholder')} />
           </Form.Item>
-          <Form.Item name="access_key_id" label="Access Key ID"
-            rules={[{ required: true, message: 'Please enter Access Key ID' }]}>
-            <Input placeholder="AKIA..." />
+          <Form.Item name="access_key_id"
+            label={<Space>{t('accounts.accessKeyId')}<ExclamationCircleOutlined style={{ color: '#faad14', cursor: 'pointer' }} onClick={() => setPermissionModalVisible(true)} /></Space>}
+            rules={[{ required: true, message: t('accounts.accessKeyRequired') }]}>
+            <Input placeholder={t('accounts.accessKeyPlaceholder')} />
           </Form.Item>
-          <Form.Item name="secret_access_key" label="Secret Access Key"
-            rules={[{ required: true, message: 'Please enter Secret Access Key' }]}>
-            <Input.Password placeholder="Secret Access Key" />
+          <Form.Item name="secret_access_key"
+            label={<Space>{t('accounts.secretAccessKey')}<ExclamationCircleOutlined style={{ color: '#faad14', cursor: 'pointer' }} onClick={() => setPermissionModalVisible(true)} /></Space>}
+            rules={[{ required: true, message: t('accounts.secretKeyRequired') }]}>
+            <Input.Password placeholder={t('accounts.secretKeyPlaceholder')} />
           </Form.Item>
           <Space style={{ width: '100%' }} size="large">
-            <Form.Item name="sso_region" label="SSO Region" style={{ marginBottom: 0, width: 200 }}>
-              <Select>{regions.map(r => <Option key={r} value={r}>{r}</Option>)}</Select>
+            <Form.Item name="sso_region" label={t('accounts.ssoRegion')} style={{ marginBottom: 0, width: 240 }}>
+              <Select>{regions.map(r => <Option key={r.value} value={r.value}>{t(r.labelKey)} ({r.value})</Option>)}</Select>
             </Form.Item>
-            <Form.Item name="kiro_region" label="Kiro Region" style={{ marginBottom: 0, width: 200 }}>
-              <Select>{regions.map(r => <Option key={r} value={r}>{r}</Option>)}</Select>
+            <Form.Item name="kiro_region" label={t('accounts.kiroRegion')} style={{ marginBottom: 0, width: 240 }}>
+              <Select>{regions.map(r => <Option key={r.value} value={r.value}>{t(r.labelKey)} ({r.value})</Option>)}</Select>
             </Form.Item>
           </Space>
-          <Form.Item name="sync_interval_minutes" label="Auto Sync Interval" style={{ marginTop: 16 }}
-            extra="0 = disabled. Recommended: 30 or 60 minutes.">
+          <Form.Item name="sync_interval_minutes" label={t('accounts.autoSync')} style={{ marginTop: 16 }}
+            extra={t('accounts.autoSyncExtra')}>
             <Select>
-              <Option value={0}>Disabled</Option>
-              <Option value={3}>Every 3 min</Option>
-              <Option value={5}>Every 5 min</Option>
-              <Option value={15}>Every 15 min</Option>
-              <Option value={30}>Every 30 min</Option>
-              <Option value={60}>Every 60 min</Option>
+              <Option value={0}>{t('accounts.autoSyncDisabled')}</Option>
+              <Option value={3}>{t('accounts.autoSyncEvery', { min: 3 })}</Option>
+              <Option value={5}>{t('accounts.autoSyncEvery', { min: 5 })}</Option>
+              <Option value={15}>{t('accounts.autoSyncEvery', { min: 15 })}</Option>
+              <Option value={30}>{t('accounts.autoSyncEvery', { min: 30 })}</Option>
+              <Option value={60}>{t('accounts.autoSyncEvery', { min: 60 })}</Option>
             </Select>
           </Form.Item>
           <Form.Item name="is_default" label={t('accounts.isDefault')} valuePropName="checked" style={{ marginTop: 8 }}>
@@ -315,11 +317,54 @@ export default function Accounts() {
           </Form.Item>
           <Form.Item style={{ marginTop: 24, marginBottom: 0 }}>
             <Space style={{ width: '100%', justifyContent: 'flex-end' }}>
-              <Button onClick={() => { setModalVisible(false); form.resetFields() }}>Cancel</Button>
-              <Button type="primary" htmlType="submit">Add Account</Button>
+              <Button onClick={() => { setModalVisible(false); form.resetFields() }}>{t('common.cancel')}</Button>
+              <Button type="primary" htmlType="submit">{t('accounts.addButton')}</Button>
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+      {/* IAM 权限说明弹窗 */}
+      <Modal title={t('accounts.permissionTitle')} open={permissionModalVisible}
+        onCancel={() => setPermissionModalVisible(false)}
+        footer={<Button type="primary" onClick={() => setPermissionModalVisible(false)}>OK</Button>}
+        width={680}>
+        <div style={{ fontSize: 14, lineHeight: 1.8 }}>
+          <p>{t('accounts.permissionIntro')}</p>
+
+          <Title level={5}>1. {t('accounts.managedPolicy')}</Title>
+          <Tag color="blue" style={{ fontSize: 13, padding: '2px 8px' }}>AWSSSOMasterAccountAdministrator</Tag>
+
+          <Title level={5} style={{ marginTop: 16 }}>2. {t('accounts.customInlinePolicy')}</Title>
+          <p style={{ color: '#ff4d4f' }}>
+            {t('accounts.inlinePolicyWarning')}
+          </p>
+          <pre style={{
+            background: '#f5f5f5', padding: 12, borderRadius: 6, fontSize: 13,
+            overflow: 'auto', maxHeight: 300,
+          }}>{`{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "user-subscriptions:*",
+                "q:*"
+            ],
+            "Resource": "*"
+        }
+    ]
+}`}</pre>
+
+          <Title level={5} style={{ marginTop: 16 }}>{t('accounts.whyNeeded')}</Title>
+          <ul style={{ paddingLeft: 20 }}>
+            <li><code>user-subscriptions:*</code> — {t('accounts.permUserSub')}</li>
+            <li><code>q:CreateAssignment</code> — {t('accounts.permCreateAssignment')}</li>
+            <li><code>q:DeleteAssignment</code> — {t('accounts.permDeleteAssignment')}</li>
+            <li><code>q:UpdateAssignment</code> — {t('accounts.permUpdateAssignment')}</li>
+            <li><code>AWSSSOMasterAccountAdministrator</code> — {t('accounts.permSSO')}</li>
+          </ul>
+        </div>
       </Modal>
     </div>
   )
